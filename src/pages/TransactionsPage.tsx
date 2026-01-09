@@ -121,7 +121,10 @@ const TransactionsPage = () => {
       field: 'amount',
       headerName: 'Số tiền',
       width: 150,
-      valueFormatter: (params) => Number((params as any).value || 0).toLocaleString('vi-VN'),
+      valueFormatter: (params) => {
+        const val = (params as any)?.value
+        return Number(val ?? 0).toLocaleString('vi-VN')
+      },
     },
     { field: 'currency', headerName: 'Tiền tệ', width: 110 },
     {
@@ -136,8 +139,10 @@ const TransactionsPage = () => {
       field: 'paidAt',
       headerName: 'Thanh toán lúc',
       width: 200,
-      valueFormatter: (params) =>
-        (params as any).value ? new Date((params as any).value as string).toLocaleString('vi-VN') : '',
+      valueFormatter: (params) => {
+        const val = (params as any)?.value
+        return val ? new Date(val as string).toLocaleString('vi-VN') : ''
+      },
     },
     {
       field: 'actions',

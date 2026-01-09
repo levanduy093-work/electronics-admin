@@ -18,6 +18,7 @@ import {
   TableRow,
   Stack,
   LinearProgress,
+  ButtonGroup,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
@@ -68,6 +69,7 @@ const OrdersPage = () => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const fetchOrders = async () => {
     setLoading(true)
@@ -95,37 +97,57 @@ const OrdersPage = () => {
     setSelectedOrder(null)
   }
 
-  const updateStatus = async (statusField: keyof OrderStatus) => {
-    if (!selectedOrder) return
+  const updateStatus = async (statusField: keyof OrderStatus, order?: Order) => {
+    const target = order || selectedOrder
+    if (!target) return
     try {
       setUpdating(true)
+      setUpdatingId(target._id)
       const payload = {
         status: {
-          ...(selectedOrder.status || {}),
+          ...(target.status || {}),
           [statusField]: new Date().toISOString(),
         },
       }
-      await client.patch(`/orders/${selectedOrder._id}`, payload)
+      await client.patch(`/orders/${target._id}`, payload)
       await fetchOrders()
-      handleClose()
+      if (!order) handleClose()
     } catch (error) {
       console.error('Error updating order status:', error)
     } finally {
       setUpdating(false)
+      setUpdatingId(null)
     }
   }
 
-  const cancelOrder = async () => {
-    if (!selectedOrder) return
+  const cancelOrder = async (order?: Order) => {
+    const target = order || selectedOrder
+    if (!target) return
     try {
       setUpdating(true)
-      await client.patch(`/orders/${selectedOrder._id}`, { isCancelled: true })
+      setUpdatingId(target._id)
+      await client.patch(`/orders/${target._id}`, { isCancelled: true })
       await fetchOrders()
-      handleClose()
+      if (!order) handleClose()
     } catch (error) {
       console.error('Error cancelling order:', error)
     } finally {
       setUpdating(false)
+      setUpdatingId(null)
+    }
+  }
+
+  const rollbackOrder = async (order: Order) => {
+    try {
+      setUpdating(true)
+      setUpdatingId(order._id)
+      await client.patch(`/orders/${order._id}`, { status: {}, isCancelled: false })
+      await fetchOrders()
+    } catch (error) {
+      console.error('Error rolling back order:', error)
+    } finally {
+      setUpdating(false)
+      setUpdatingId(null)
     }
   }
 
@@ -138,20 +160,78 @@ const OrdersPage = () => {
     return <Chip label="Mới" size="small" />
   }
 
+  const formatCurrency = (value?: number) => Number(value || 0).toLocaleString('vi-VN') + ' đ'
+
+  const getPaymentChip = (payment?: string) => {
+    if (!payment) return <Chip label="Không rõ" size="small" variant="outlined" color="default" />
+    return (
+      <Chip
+        label={payment.toUpperCase()}
+        size="small"
+        variant="outlined"
+        color="info"
+        sx={{ fontWeight: 600 }}
+      />
+    )
+  }
+
+  const getPaymentStatusChip = (status?: string) => {
+    const normalized = status?.toLowerCase()
+    if (!normalized) return <Chip label="Chờ" size="small" variant="outlined" color="default" />
+    if (normalized === 'paid' || normalized === 'done')
+      return <Chip label="Đã thanh toán" size="small" color="success" variant="outlined" />
+    if (normalized === 'pending') return <Chip label="Đang chờ" size="small" color="warning" variant="outlined" />
+    return <Chip label={status} size="small" color="default" variant="outlined" />
+  }
+
+  const formatDateTime = (value?: string) =>
+    value ? new Date(value).toLocaleString('vi-VN', { hour12: false }) : '--'
+
   const columns: GridColDef<Order>[] = [
-    { field: 'code', headerName: 'Mã đơn', width: 150 },
+    {
+      field: 'code',
+      headerName: 'Mã đơn',
+      minWidth: 160,
+      renderCell: (params) => (
+        <Typography variant="body2" fontWeight={700} noWrap>
+          {params.value}
+        </Typography>
+      ),
+    },
     {
       field: 'totalPrice',
       headerName: 'Tổng tiền',
-      width: 150,
-      valueFormatter: (params) => Number((params as any).value || 0).toLocaleString('vi-VN') + ' đ',
+      headerAlign: 'center',
+      align: 'center',
+      minWidth: 140,
+      valueFormatter: (params) => formatCurrency((params as any).value as number),
     },
-    { field: 'payment', headerName: 'Thanh toán', width: 140 },
-    { field: 'paymentStatus', headerName: 'Trạng thái TT', width: 140 },
+    {
+      field: 'payment',
+      headerName: 'Thanh toán',
+      headerAlign: 'center',
+      align: 'center',
+      minWidth: 140,
+      renderCell: (params) => getPaymentChip(params.row.payment),
+      sortable: false,
+      filterable: false,
+    },
+    {
+      field: 'paymentStatus',
+      headerName: 'Trạng thái TT',
+      headerAlign: 'center',
+      align: 'center',
+      minWidth: 150,
+      renderCell: (params) => getPaymentStatusChip(params.row.paymentStatus),
+      sortable: false,
+      filterable: false,
+    },
     {
       field: 'status',
       headerName: 'Trạng thái đơn',
-      width: 180,
+      headerAlign: 'center',
+      align: 'center',
+      minWidth: 160,
       renderCell: (params: GridRenderCellParams<Order>) =>
         getStatusChip(params.row.status || {}, params.row.isCancelled),
       sortable: false,
@@ -160,19 +240,120 @@ const OrdersPage = () => {
     {
       field: 'createdAt',
       headerName: 'Ngày tạo',
-      width: 180,
-      valueFormatter: (params) =>
-        (params as any).value ? new Date((params as any).value as string).toLocaleString('vi-VN') : '',
+      headerAlign: 'center',
+      align: 'center',
+      minWidth: 180,
+      renderCell: (params) => (
+        <Typography variant="body2" noWrap>
+          {formatDateTime((params as any).value as string)}
+        </Typography>
+      ),
     },
     {
       field: 'actions',
-      headerName: 'Chi tiết',
-      width: 120,
-      renderCell: (params: GridRenderCellParams<Order>) => (
-        <IconButton onClick={() => handleOpen(params.row)} color="primary">
-          <VisibilityIcon />
-        </IconButton>
-      ),
+      headerName: 'Thao tác',
+      minWidth: 340,
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<Order>) => {
+        const order = params.row
+        const disabled = updatingId === order._id
+
+        const nextActions = [
+          !order.status?.confirmed && !order.isCancelled
+            ? { label: 'Xác nhận', action: () => updateStatus('confirmed', order), color: 'primary' as const }
+            : null,
+          order.status?.confirmed && !order.status?.packaged && !order.isCancelled
+            ? { label: 'Đóng gói', action: () => updateStatus('packaged', order), color: 'primary' as const }
+            : null,
+          order.status?.packaged && !order.status?.shipped && !order.isCancelled
+            ? { label: 'Giao hàng', action: () => updateStatus('shipped', order), color: 'primary' as const }
+            : null,
+        ].filter(Boolean) as { label: string; action: () => void; color: 'primary' | 'secondary' }[]
+
+        const showRollback =
+          order.isCancelled || order.status?.shipped || order.status?.packaged || order.status?.confirmed
+        const showCancel = !order.isCancelled
+
+        return (
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ width: '100%', minHeight: 40, justifyContent: 'flex-start' }}
+          >
+            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center' }}>
+              <IconButton
+                onClick={() => handleOpen(order)}
+                color="primary"
+                size="small"
+                aria-label="Xem chi tiết"
+              >
+                <VisibilityIcon />
+              </IconButton>
+            </Box>
+
+            <Box sx={{ flex: '0 0 auto', display: 'flex', gap: 0.75, alignItems: 'center', minHeight: 36 }}>
+              {nextActions.length > 0 ? (
+                nextActions.map((btn, idx) => (
+                  <Button
+                    key={idx}
+                    color={btn.color}
+                    size="small"
+                    variant="contained"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      btn.action()
+                    }}
+                    disabled={disabled}
+                    sx={{ whiteSpace: 'nowrap', px: 1.25, minWidth: 92 }}
+                  >
+                    {btn.label}
+                  </Button>
+                ))
+              ) : (
+                <Chip size="small" label="Hoàn tất" color="success" variant="outlined" sx={{ minWidth: 92 }} />
+              )}
+            </Box>
+
+            <Box sx={{ flex: '0 0 96px', display: 'flex', justifyContent: 'center' }}>
+              {showRollback ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 32, minWidth: 96 }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    rollbackOrder(order)
+                  }}
+                  disabled={disabled}
+                >
+                  Hoàn tác
+                </Button>
+              ) : (
+                <Box sx={{ height: 32 }} />
+              )}
+            </Box>
+
+            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center' }}>
+              {showCancel ? (
+                <IconButton
+                  color="error"
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    cancelOrder(order)
+                  }}
+                  disabled={disabled}
+                >
+                  <CancelIcon />
+                </IconButton>
+              ) : (
+                <Box sx={{ width: 32 }} />
+              )}
+            </Box>
+          </Stack>
+        )
+      },
       sortable: false,
       filterable: false,
     },
@@ -191,21 +372,34 @@ const OrdersPage = () => {
         </Box>
       </Box>
 
-      {loading && <LinearProgress />}
+      <Paper sx={{ mt: 2, p: 2, borderRadius: 2, boxShadow: 3 }}>
+        {loading && <LinearProgress sx={{ mb: 2 }} />}
 
-      <DataGrid
-        rows={orders}
-        columns={columns}
-        getRowId={(row) => row._id}
-        autoHeight
-        initialState={{
-          pagination: {
-            paginationModel: { page: 0, pageSize: 10 },
-          },
-        }}
-        pageSizeOptions={[5, 10, 25]}
-        disableRowSelectionOnClick
-      />
+        <DataGrid
+          rows={orders}
+          columns={columns}
+          getRowId={(row) => row._id}
+          autoHeight
+          rowHeight={64}
+          columnHeaderHeight={56}
+          initialState={{
+            pagination: {
+              paginationModel: { page: 0, pageSize: 10 },
+            },
+          }}
+          pageSizeOptions={[5, 10, 25]}
+          disableRowSelectionOnClick
+          disableColumnMenu
+          loading={loading}
+          sx={{
+            '& .MuiDataGrid-columnHeaders': { backgroundColor: 'grey.50', borderBottomColor: 'grey.200' },
+            '& .MuiDataGrid-columnHeaderTitle': { fontWeight: 700 },
+            '& .MuiDataGrid-cell': { alignItems: 'center' },
+            '& .MuiDataGrid-row': { borderBottomColor: 'grey.100' },
+            '& .MuiDataGrid-footerContainer': { borderTopColor: 'grey.200' },
+          }}
+        />
+      </Paper>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>Chi tiết đơn hàng - {selectedOrder?.code}</DialogTitle>
@@ -260,7 +454,7 @@ const OrdersPage = () => {
                         size="small"
                         color="error"
                         startIcon={<CancelIcon />}
-                        onClick={cancelOrder}
+                        onClick={() => cancelOrder()}
                         disabled={updating}
                       >
                         Hủy đơn
