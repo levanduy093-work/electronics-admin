@@ -1,0 +1,219 @@
+import { useEffect, useState } from 'react'
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+  IconButton,
+  Typography,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+  Chip,
+  LinearProgress,
+} from '@mui/material'
+import { DataGrid } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { useForm, Controller } from 'react-hook-form'
+import client from '../api/client'
+
+interface Movement {
+  _id: string
+  productId: string
+  type: string
+  quantity: number
+  note?: string
+  createdAt?: string
+}
+
+const InventoryMovementsPage = () => {
+  const [movements, setMovements] = useState<Movement[]>([])
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editing, setEditing] = useState<Movement | null>(null)
+  const { register, handleSubmit, reset, setValue, control } = useForm()
+
+  const fetchMovements = async () => {
+    setLoading(true)
+    try {
+      const res = await client.get('/inventory-movements')
+      setMovements(res.data)
+    } catch (error) {
+      console.error('Error fetching inventory movements:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMovements()
+  }, [])
+
+  const handleOpen = (movement: Movement | null = null) => {
+    setEditing(movement)
+    if (movement) {
+      setValue('productId', movement.productId)
+      setValue('type', movement.type)
+      setValue('quantity', movement.quantity)
+      setValue('note', movement.note || '')
+    } else {
+      reset({ type: 'inbound' })
+    }
+    setOpen(true)
+  }
+
+  const handleClose = () => {
+    setOpen(false)
+    setEditing(null)
+    reset({ type: 'inbound' })
+  }
+
+  const onSubmit = async (data: any) => {
+    const payload = {
+      productId: data.productId,
+      type: data.type,
+      quantity: Number(data.quantity),
+      note: data.note,
+    }
+    try {
+      setSaving(true)
+      if (editing) {
+        await client.patch(`/inventory-movements/${editing._id}`, payload)
+      } else {
+        await client.post('/inventory-movements', payload)
+      }
+      fetchMovements()
+      handleClose()
+    } catch (error) {
+      console.error('Error saving inventory movement:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Bạn có chắc muốn xóa phiếu kho này?')) {
+      try {
+        await client.delete(`/inventory-movements/${id}`)
+        fetchMovements()
+      } catch (error) {
+        console.error('Error deleting inventory movement:', error)
+      }
+    }
+  }
+
+  const columns: GridColDef<Movement>[] = [
+    { field: 'productId', headerName: 'Product ID', flex: 1, minWidth: 200 },
+    {
+      field: 'type',
+      headerName: 'Loại',
+      width: 130,
+      renderCell: (params: GridRenderCellParams<Movement>) => (
+        <Chip
+          size="small"
+          label={params.value === 'inbound' ? 'Nhập kho' : 'Xuất kho'}
+          color={params.value === 'inbound' ? 'success' : 'warning'}
+        />
+      ),
+      sortable: false,
+      filterable: false,
+    },
+    { field: 'quantity', headerName: 'Số lượng', width: 130 },
+    { field: 'note', headerName: 'Ghi chú', flex: 1, minWidth: 160 },
+    {
+      field: 'createdAt',
+      headerName: 'Ngày tạo',
+      width: 180,
+      valueFormatter: (params) =>
+        (params as any).value ? new Date((params as any).value as string).toLocaleString('vi-VN') : '',
+    },
+    {
+      field: 'actions',
+      headerName: 'Hành động',
+      width: 140,
+      renderCell: (params) => (
+        <>
+          <IconButton onClick={() => handleOpen(params.row)} color="primary">
+            <EditIcon />
+          </IconButton>
+          <IconButton onClick={() => handleDelete(params.row._id)} color="error">
+            <DeleteIcon />
+          </IconButton>
+        </>
+      ),
+      sortable: false,
+      filterable: false,
+    },
+  ]
+
+  return (
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          Tồn kho
+        </Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+          Thêm phiếu
+        </Button>
+      </Box>
+
+      {loading && <LinearProgress />}
+
+      <DataGrid
+        rows={movements}
+        columns={columns}
+        getRowId={(row) => row._id}
+        autoHeight
+        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
+        pageSizeOptions={[5, 10, 25]}
+        disableRowSelectionOnClick
+      />
+
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>{editing ? 'Chỉnh sửa phiếu kho' : 'Thêm phiếu kho'}</DialogTitle>
+        <DialogContent>
+          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1, minWidth: 420 }}>
+            <TextField margin="normal" fullWidth label="Product ID" required {...register('productId')} />
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="type-label">Loại</InputLabel>
+              <Controller
+                name="type"
+                control={control}
+                defaultValue="inbound"
+                render={({ field }) => (
+                  <Select labelId="type-label" label="Loại" {...field}>
+                    <MenuItem value="inbound">Nhập kho</MenuItem>
+                    <MenuItem value="outbound">Xuất kho</MenuItem>
+                  </Select>
+                )}
+              />
+            </FormControl>
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Số lượng"
+              type="number"
+              required
+              {...register('quantity', { valueAsNumber: true })}
+            />
+            <TextField margin="normal" fullWidth label="Ghi chú" {...register('note')} />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose}>Hủy</Button>
+          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Lưu'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  )
+}
+
+export default InventoryMovementsPage

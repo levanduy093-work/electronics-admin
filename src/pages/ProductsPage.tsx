@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 import {
   Box,
   Button,
@@ -9,90 +9,126 @@ import {
   TextField,
   IconButton,
   Typography,
-  Grid,
-} from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
-import { useForm } from 'react-hook-form';
-import client from '../api/client';
+  Stack,
+  Chip,
+  LinearProgress,
+} from '@mui/material'
+import { DataGrid } from '@mui/x-data-grid'
+import type { GridColDef } from '@mui/x-data-grid'
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material'
+import { useForm } from 'react-hook-form'
+import client from '../api/client'
 
 interface Product {
-  _id: string;
-  name: string;
-  category: string;
+  _id: string
+  name: string
+  code?: string
+  category?: string
   price: {
-    originalPrice: number;
-    salePrice: number;
-  };
-  stock: number;
-  description: string;
-  images: string[];
+    originalPrice: number
+    salePrice: number
+  }
+  stock: number
+  description?: string
+  images: string[]
+  datasheet?: string
   specs?: {
-    resistance?: string;
-    tolerance?: string;
-    power?: string;
-    scope?: string;
-    voltage?: string;
-  };
+    resistance?: string
+    tolerance?: string
+    power?: string
+    scope?: string
+    voltage?: string
+  }
+}
+
+interface ProductFormValues {
+  name: string
+  code?: string
+  category?: string
+  originalPrice: number
+  salePrice: number
+  stock: number
+  description?: string
+  images?: string
+  datasheet?: string
+  resistance?: string
+  tolerance?: string
+  power?: string
+  scope?: string
+  voltage?: string
 }
 
 const ProductsPage = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [open, setOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const { register, handleSubmit, reset, setValue } = useForm();
+  const [products, setProducts] = useState<Product[]>([])
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const { register, handleSubmit, reset, setValue } = useForm<ProductFormValues>()
 
   const fetchProducts = async () => {
+    setLoading(true)
     try {
-      const response = await client.get('/products');
-      setProducts(response.data);
+      const response = await client.get('/products')
+      setProducts(response.data)
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching products:', error)
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    fetchProducts()
+  }, [])
 
   const handleOpen = (product: Product | null = null) => {
-    setEditingProduct(product);
+    setEditingProduct(product)
     if (product) {
-      setValue('name', product.name);
-      setValue('category', product.category);
-      setValue('originalPrice', product.price.originalPrice);
-      setValue('salePrice', product.price.salePrice);
-      setValue('stock', product.stock);
-      setValue('description', product.description);
-      setValue('images', product.images ? product.images.join(', ') : '');
-      setValue('resistance', product.specs?.resistance || '');
-      setValue('tolerance', product.specs?.tolerance || '');
-      setValue('power', product.specs?.power || '');
-      setValue('scope', product.specs?.scope || '');
-      setValue('voltage', product.specs?.voltage || '');
+      setValue('name', product.name)
+      setValue('code', product.code || '')
+      setValue('category', product.category || '')
+      setValue('originalPrice', product.price.originalPrice)
+      setValue('salePrice', product.price.salePrice)
+      setValue('stock', product.stock)
+      setValue('description', product.description || '')
+      setValue('images', product.images?.join(', ') || '')
+      setValue('datasheet', product.datasheet || '')
+      setValue('resistance', product.specs?.resistance || '')
+      setValue('tolerance', product.specs?.tolerance || '')
+      setValue('power', product.specs?.power || '')
+      setValue('scope', product.specs?.scope || '')
+      setValue('voltage', product.specs?.voltage || '')
     } else {
-      reset();
+      reset()
     }
-    setOpen(true);
-  };
+    setOpen(true)
+  }
 
   const handleClose = () => {
-    setOpen(false);
-    setEditingProduct(null);
-    reset();
-  };
+    setOpen(false)
+    setEditingProduct(null)
+    reset()
+  }
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: ProductFormValues) => {
     const payload = {
       name: data.name,
-      category: data.category,
+      code: data.code || undefined,
+      category: data.category || undefined,
       price: {
         originalPrice: Number(data.originalPrice),
         salePrice: Number(data.salePrice),
       },
       stock: Number(data.stock),
       description: data.description,
-      images: data.images ? data.images.split(',').map((url: string) => url.trim()).filter((url: string) => url) : [],
+      datasheet: data.datasheet,
+      images: data.images
+        ? data.images
+            .split(',')
+            .map((url) => url.trim())
+            .filter(Boolean)
+        : [],
       specs: {
         resistance: data.resistance,
         tolerance: data.tolerance,
@@ -100,53 +136,78 @@ const ProductsPage = () => {
         scope: data.scope,
         voltage: data.voltage,
       },
-    };
+    }
 
     try {
+      setSaving(true)
       if (editingProduct) {
-        await client.patch(`/products/${editingProduct._id}`, payload);
+        await client.patch(`/products/${editingProduct._id}`, payload)
       } else {
-        await client.post('/products', payload);
+        await client.post('/products', payload)
       }
-      fetchProducts();
-      handleClose();
+      fetchProducts()
+      handleClose()
     } catch (error) {
-      console.error('Error saving product:', error);
+      console.error('Error saving product:', error)
+    } finally {
+      setSaving(false)
     }
-  };
+  }
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+    if (window.confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
       try {
-        await client.delete(`/products/${id}`);
-        fetchProducts();
+        await client.delete(`/products/${id}`)
+        fetchProducts()
       } catch (error) {
-        console.error('Error deleting product:', error);
+        console.error('Error deleting product:', error)
       }
     }
-  };
+  }
 
   const columns: GridColDef[] = [
-    { field: '_id', headerName: 'ID', width: 220 },
-    { field: 'name', headerName: 'Name', width: 200 },
-    { field: 'category', headerName: 'Category', width: 130 },
+    { field: 'code', headerName: 'Mã', width: 120 },
+    { field: 'name', headerName: 'Tên', width: 200 },
+    { field: 'category', headerName: 'Danh mục', width: 140 },
     {
-      field: 'originalPrice',
-      headerName: 'Original Price',
-      width: 130,
-      valueGetter: (params: any) => params.row.price?.originalPrice,
+      field: 'price',
+      headerName: 'Giá',
+      width: 180,
+      valueGetter: (params: any) => params.row?.price?.salePrice ?? 0,
+      renderCell: (params: any) => {
+        const sale = params.row?.price?.salePrice ?? 0
+        const original = params.row?.price?.originalPrice ?? 0
+        return (
+        <Stack spacing={0.3}>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {sale.toLocaleString('vi-VN')} đ
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Gốc: {original.toLocaleString('vi-VN')} đ
+          </Typography>
+        </Stack>
+        )
+      },
     },
+    { field: 'stock', headerName: 'Tồn kho', width: 110 },
     {
-      field: 'salePrice',
-      headerName: 'Sale Price',
-      width: 130,
-      valueGetter: (params: any) => params.row.price?.salePrice,
+      field: 'status',
+      headerName: 'Trạng thái',
+      width: 140,
+      renderCell: (params) => (
+        <Chip
+          label={params.row.stock > 0 ? 'Đang bán' : 'Hết hàng'}
+          color={params.row.stock > 0 ? 'success' : 'warning'}
+          size="small"
+        />
+      ),
+      sortable: false,
+      filterable: false,
     },
-    { field: 'stock', headerName: 'Stock', width: 90 },
     {
       field: 'actions',
-      headerName: 'Actions',
-      width: 150,
+      headerName: 'Hành động',
+      width: 140,
       renderCell: (params) => (
         <>
           <IconButton onClick={() => handleOpen(params.row)} color="primary">
@@ -157,21 +218,34 @@ const ProductsPage = () => {
           </IconButton>
         </>
       ),
+      sortable: false,
+      filterable: false,
     },
-  ];
+  ]
 
   return (
-    <Box sx={{ height: 600, width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h4">Products</Typography>
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+        <div>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Sản phẩm
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Quản lý danh mục, giá bán, tồn kho và thông số kỹ thuật.
+          </Typography>
+        </div>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-          Add Product
+          Thêm sản phẩm
         </Button>
       </Box>
+
+      {loading && <LinearProgress />}
+
       <DataGrid
         rows={products}
         columns={columns}
         getRowId={(row) => row._id}
+        autoHeight
         initialState={{
           pagination: {
             paginationModel: { page: 0, pageSize: 10 },
@@ -182,103 +256,83 @@ const ProductsPage = () => {
       />
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>{editingProduct ? 'Edit Product' : 'Add Product'}</DialogTitle>
+        <DialogTitle>{editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm'}</DialogTitle>
         <DialogContent>
-          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1 }}>
-            <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                    margin="normal"
-                    fullWidth
-                    label="Name"
-                    {...register('name', { required: true })}
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                    margin="normal"
-                    fullWidth
-                    label="Category"
-                    {...register('category')}
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                    margin="normal"
-                    fullWidth
-                    label="Original Price"
-                    type="number"
-                    {...register('originalPrice', { required: true })}
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                    margin="normal"
-                    fullWidth
-                    label="Sale Price"
-                    type="number"
-                    {...register('salePrice', { required: true })}
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                    margin="normal"
-                    fullWidth
-                    label="Stock"
-                    type="number"
-                    {...register('stock', { required: true })}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                    margin="normal"
-                    fullWidth
-                    label="Images (comma separated URLs)"
-                    {...register('images')}
-                    />
-                </Grid>
-                
-                <Grid item xs={12}>
-                    <Typography variant="h6" sx={{ mt: 2 }}>Specifications</Typography>
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                    <TextField fullWidth label="Resistance" {...register('resistance')} />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                    <TextField fullWidth label="Tolerance" {...register('tolerance')} />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                    <TextField fullWidth label="Power" {...register('power')} />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField fullWidth label="Scope" {...register('scope')} />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField fullWidth label="Voltage" {...register('voltage')} />
-                </Grid>
+          <Box
+            component="form"
+            onSubmit={handleSubmit(onSubmit)}
+            sx={{
+              mt: 1,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gap: 2,
+            }}
+          >
+            <TextField margin="normal" fullWidth label="Tên" required {...register('name')} />
+            <TextField margin="normal" fullWidth label="Mã sản phẩm" {...register('code')} />
+            <TextField margin="normal" fullWidth label="Danh mục" {...register('category')} />
+            <TextField margin="normal" fullWidth label="Link datasheet" {...register('datasheet')} />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Giá gốc"
+              type="number"
+              required
+              {...register('originalPrice', { valueAsNumber: true })}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Giá bán"
+              type="number"
+              required
+              {...register('salePrice', { valueAsNumber: true })}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Tồn kho"
+              type="number"
+              required
+              {...register('stock', { valueAsNumber: true })}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Ảnh (URL, cách nhau bởi dấu phẩy)"
+              sx={{ gridColumn: { sm: 'span 2' } }}
+              {...register('images')}
+            />
 
-                <Grid item xs={12}>
-                    <TextField
-                    margin="normal"
-                    fullWidth
-                    label="Description"
-                    multiline
-                    rows={4}
-                    {...register('description')}
-                    />
-                </Grid>
-            </Grid>
+            <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
+              Thông số kỹ thuật
+            </Typography>
+            <TextField fullWidth label="Resistance" {...register('resistance')} />
+            <TextField fullWidth label="Tolerance" {...register('tolerance')} />
+            <TextField fullWidth label="Power" {...register('power')} />
+            <TextField fullWidth label="Scope" {...register('scope')} />
+            <TextField fullWidth label="Voltage" {...register('voltage')} />
+
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Mô tả"
+              multiline
+              rows={4}
+              sx={{ gridColumn: { sm: 'span 2' } }}
+              {...register('description')}
+            />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained">
-            Save
+          <Button onClick={handleClose}>Hủy</Button>
+          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Lưu'}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
-  );
-};
+  )
+}
 
-export default ProductsPage;
+export default ProductsPage

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 import {
   Box,
   Button,
@@ -13,92 +13,118 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-} from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
-import { useForm, Controller } from 'react-hook-form';
-import client from '../api/client';
+  LinearProgress,
+} from '@mui/material'
+import { DataGrid } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material'
+import { useForm, Controller } from 'react-hook-form'
+import client from '../api/client'
 
 interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
+  _id: string
+  name: string
+  email: string
+  role: string
+  avatar?: string
+}
+
+interface UserFormValues {
+  name: string
+  email: string
+  role: string
+  password?: string
+  avatar?: string
 }
 
 const UsersPage = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [open, setOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const { register, handleSubmit, reset, setValue, control } = useForm();
+  const [users, setUsers] = useState<User[]>([])
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const { register, handleSubmit, reset, setValue, control } = useForm<UserFormValues>()
 
   const fetchUsers = async () => {
+    setLoading(true)
     try {
-      const response = await client.get('/users');
-      setUsers(response.data);
+      const response = await client.get('/users')
+      setUsers(response.data)
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching users:', error)
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    fetchUsers()
+  }, [])
 
   const handleOpen = (user: User | null = null) => {
-    setEditingUser(user);
+    setEditingUser(user)
     if (user) {
-      setValue('name', user.name);
-      setValue('email', user.email);
-      setValue('role', user.role);
+      setValue('name', user.name)
+      setValue('email', user.email)
+      setValue('role', user.role)
+      setValue('avatar', user.avatar || '')
     } else {
-      reset();
-      setValue('role', 'customer');
+      reset({ role: 'customer' })
     }
-    setOpen(true);
-  };
+    setOpen(true)
+  }
 
   const handleClose = () => {
-    setOpen(false);
-    setEditingUser(null);
-    reset();
-  };
+    setOpen(false)
+    setEditingUser(null)
+    reset({ role: 'customer' })
+  }
 
-  const onSubmit = async (data: any) => {
-    try {
-      if (editingUser) {
-        await client.patch(`/users/${editingUser._id}`, data);
-      } else {
-        await client.post('/users', { ...data, password: 'Password123!' }); // Default password for new users created by admin
-      }
-      fetchUsers();
-      handleClose();
-    } catch (error) {
-      console.error('Error saving user:', error);
+  const onSubmit = async (data: UserFormValues) => {
+    const payload: UserFormValues = {
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      avatar: data.avatar || undefined,
+      password: data.password || undefined,
     }
-  };
+    try {
+      setSaving(true)
+      if (editingUser) {
+        if (!data.password) delete payload.password
+        await client.patch(`/users/${editingUser._id}`, payload)
+      } else {
+        await client.post('/users', { ...payload, password: data.password || 'Password123!' })
+      }
+      fetchUsers()
+      handleClose()
+    } catch (error) {
+      console.error('Error saving user:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    if (window.confirm('Bạn có chắc muốn xóa người dùng này?')) {
       try {
-        await client.delete(`/users/${id}`);
-        fetchUsers();
+        await client.delete(`/users/${id}`)
+        fetchUsers()
       } catch (error) {
-        console.error('Error deleting user:', error);
+        console.error('Error deleting user:', error)
       }
     }
-  };
+  }
 
-  const columns: GridColDef[] = [
-    { field: '_id', headerName: 'ID', width: 220 },
-    { field: 'name', headerName: 'Name', width: 200 },
-    { field: 'email', headerName: 'Email', width: 250 },
-    { field: 'role', headerName: 'Role', width: 130 },
+  const columns: GridColDef<User>[] = [
+    { field: 'name', headerName: 'Tên', flex: 1, minWidth: 160 },
+    { field: 'email', headerName: 'Email', flex: 1.2, minWidth: 220 },
+    { field: 'role', headerName: 'Quyền', width: 130 },
     {
       field: 'actions',
-      headerName: 'Actions',
-      width: 150,
-      renderCell: (params) => (
+      headerName: 'Hành động',
+      width: 140,
+      renderCell: (params: GridRenderCellParams<User>) => (
         <>
           <IconButton onClick={() => handleOpen(params.row)} color="primary">
             <EditIcon />
@@ -108,21 +134,34 @@ const UsersPage = () => {
           </IconButton>
         </>
       ),
+      sortable: false,
+      filterable: false,
     },
-  ];
+  ]
 
   return (
-    <Box sx={{ height: 600, width: '100%' }}>
+    <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h4">Users</Typography>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700 }} gutterBottom>
+            Người dùng
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Thêm, sửa quyền hạn và thông tin tài khoản.
+          </Typography>
+        </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-          Add User
+          Thêm người dùng
         </Button>
       </Box>
+
+      {loading && <LinearProgress />}
+
       <DataGrid
         rows={users}
         columns={columns}
         getRowId={(row) => row._id}
+        autoHeight
         initialState={{
           pagination: {
             paginationModel: { page: 0, pageSize: 10 },
@@ -133,50 +172,44 @@ const UsersPage = () => {
       />
 
       <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>{editingUser ? 'Edit User' : 'Add User'}</DialogTitle>
+        <DialogTitle>{editingUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng'}</DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1, minWidth: 400 }}>
-            <TextField
-              margin="normal"
-              fullWidth
-              label="Name"
-              {...register('name', { required: true })}
-            />
-            <TextField
-              margin="normal"
-              fullWidth
-              label="Email"
-              {...register('email', { required: true })}
-            />
+            <TextField margin="normal" fullWidth label="Tên" required {...register('name')} />
+            <TextField margin="normal" fullWidth label="Email" required {...register('email')} />
             <FormControl fullWidth margin="normal">
-              <InputLabel id="role-label">Role</InputLabel>
+              <InputLabel id="role-label">Quyền</InputLabel>
               <Controller
                 name="role"
                 control={control}
                 defaultValue="customer"
                 render={({ field }) => (
-                  <Select
-                    labelId="role-label"
-                    label="Role"
-                    {...field}
-                  >
+                  <Select labelId="role-label" label="Quyền" {...field}>
                     <MenuItem value="customer">Customer</MenuItem>
                     <MenuItem value="admin">Admin</MenuItem>
                   </Select>
                 )}
               />
             </FormControl>
+            <TextField
+              margin="normal"
+              fullWidth
+              label={editingUser ? 'Mật khẩu (để trống nếu không đổi)' : 'Mật khẩu mặc định'}
+              type="password"
+              {...register('password')}
+            />
+            <TextField margin="normal" fullWidth label="Avatar URL" {...register('avatar')} />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained">
-            Save
+          <Button onClick={handleClose}>Hủy</Button>
+          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Lưu'}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
-  );
-};
+  )
+}
 
-export default UsersPage;
+export default UsersPage

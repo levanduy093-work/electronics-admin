@@ -1,88 +1,96 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Box,
-  Typography,
-  IconButton,
-  Rating,
-} from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { Delete as DeleteIcon } from '@mui/icons-material';
-import client from '../api/client';
+import { useEffect, useState } from 'react'
+import { Box, Typography, IconButton, Rating, LinearProgress } from '@mui/material'
+import { DataGrid } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
+import { Delete as DeleteIcon } from '@mui/icons-material'
+import client from '../api/client'
 
 interface Review {
-  _id: string;
-  userId: string;
-  productId: string;
-  rating: number;
-  comment: string;
-  createdAt: string;
+  _id: string
+  userId: string
+  productId: string
+  rating: number
+  comment?: string
+  createdAt: string
 }
 
 const ReviewsPage = () => {
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [loading, setLoading] = useState(false)
 
   const fetchReviews = async () => {
+    setLoading(true)
     try {
-      const response = await client.get('/reviews'); // Backend might need a getAll endpoint for admins if it doesn't exist
-      setReviews(response.data);
+      const response = await client.get('/reviews')
+      setReviews(response.data)
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      console.error('Error fetching reviews:', error)
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchReviews();
-  }, []);
+    fetchReviews()
+  }, [])
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this review?')) {
+    if (window.confirm('Bạn có chắc muốn xóa đánh giá này?')) {
       try {
-        await client.delete(`/reviews/${id}`);
-        fetchReviews();
+        await client.delete(`/reviews/${id}`)
+        fetchReviews()
       } catch (error) {
-        console.error('Error deleting review:', error);
+        console.error('Error deleting review:', error)
       }
     }
-  };
+  }
 
-  const columns: GridColDef[] = [
+  const columns: GridColDef<Review>[] = [
     { field: '_id', headerName: 'ID', width: 220 },
     { field: 'productId', headerName: 'Product ID', width: 220 },
     { field: 'userId', headerName: 'User ID', width: 220 },
     {
       field: 'rating',
       headerName: 'Rating',
-      width: 150,
-      renderCell: (params) => <Rating value={params.value} readOnly />,
+      width: 140,
+      renderCell: (params: GridRenderCellParams<Review>) => <Rating value={params.value} readOnly />,
+      sortable: false,
+      filterable: false,
     },
-    { field: 'comment', headerName: 'Comment', width: 300 },
+    { field: 'comment', headerName: 'Bình luận', flex: 1, minWidth: 220 },
     {
       field: 'createdAt',
-      headerName: 'Date',
+      headerName: 'Ngày',
       width: 180,
-      valueFormatter: (params) => new Date(params.value).toLocaleString(),
+      valueFormatter: (params) => new Date((params as any).value as string).toLocaleString('vi-VN'),
     },
     {
       field: 'actions',
-      headerName: 'Actions',
-      width: 100,
+      headerName: 'Hành động',
+      width: 120,
       renderCell: (params) => (
         <IconButton onClick={() => handleDelete(params.row._id)} color="error">
           <DeleteIcon />
         </IconButton>
       ),
+      sortable: false,
+      filterable: false,
     },
-  ];
+  ]
 
   return (
-    <Box sx={{ height: 600, width: '100%' }}>
-      <Typography variant="h4" gutterBottom>
-        Reviews
+    <Box sx={{ height: '100%', width: '100%' }}>
+      <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+        Đánh giá
       </Typography>
+
+      {loading && <LinearProgress />}
+
       <DataGrid
         rows={reviews}
         columns={columns}
         getRowId={(row) => row._id}
+        autoHeight
         initialState={{
           pagination: {
             paginationModel: { page: 0, pageSize: 10 },
@@ -92,7 +100,7 @@ const ReviewsPage = () => {
         disableRowSelectionOnClick
       />
     </Box>
-  );
-};
+  )
+}
 
-export default ReviewsPage;
+export default ReviewsPage
