@@ -193,9 +193,11 @@ const OrdersPage = () => {
       headerName: 'Mã đơn',
       minWidth: 160,
       renderCell: (params) => (
-        <Typography variant="body2" fontWeight={700} noWrap>
-          {params.value}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2" fontWeight={700} noWrap>
+            {params.value}
+          </Typography>
+        </Box>
       ),
     },
     {
@@ -244,9 +246,11 @@ const OrdersPage = () => {
       align: 'center',
       minWidth: 180,
       renderCell: (params) => (
-        <Typography variant="body2" noWrap>
-          {formatDateTime((params as any).value as string)}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
+          <Typography variant="body2" noWrap>
+            {formatDateTime((params as any).value as string)}
+          </Typography>
+        </Box>
       ),
     },
     {
@@ -257,6 +261,7 @@ const OrdersPage = () => {
       renderCell: (params: GridRenderCellParams<Order>) => {
         const order = params.row
         const disabled = updatingId === order._id
+        const actionHeight = 36
 
         const nextActions = [
           !order.status?.confirmed && !order.isCancelled
@@ -279,9 +284,9 @@ const OrdersPage = () => {
             direction="row"
             spacing={1}
             alignItems="center"
-            sx={{ width: '100%', minHeight: 40, justifyContent: 'flex-start' }}
+            sx={{ width: '100%', height: '100%', minHeight: 48, justifyContent: 'flex-start' }}
           >
-            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               <IconButton
                 onClick={() => handleOpen(order)}
                 color="primary"
@@ -292,7 +297,16 @@ const OrdersPage = () => {
               </IconButton>
             </Box>
 
-            <Box sx={{ flex: '0 0 auto', display: 'flex', gap: 0.75, alignItems: 'center', minHeight: 36 }}>
+            <Box
+              sx={{
+                flex: '0 0 auto',
+                display: 'flex',
+                gap: 0.75,
+                alignItems: 'center',
+                minHeight: 36,
+                height: '100%',
+              }}
+            >
               {nextActions.length > 0 ? (
                 nextActions.map((btn, idx) => (
                   <Button
@@ -300,27 +314,37 @@ const OrdersPage = () => {
                     color={btn.color}
                     size="small"
                     variant="contained"
+                    sx={{ height: actionHeight, minHeight: actionHeight, px: 1.5, minWidth: 100 }}
                     onClick={(e) => {
                       e.stopPropagation()
                       btn.action()
                     }}
                     disabled={disabled}
-                    sx={{ whiteSpace: 'nowrap', px: 1.25, minWidth: 92 }}
                   >
                     {btn.label}
                   </Button>
                 ))
               ) : (
-                <Chip size="small" label="Hoàn tất" color="success" variant="outlined" sx={{ minWidth: 92 }} />
+                <Chip
+                  size="small"
+                  label="Hoàn tất"
+                  color="success"
+                  variant="outlined"
+                  sx={{
+                    minWidth: 100,
+                    height: actionHeight,
+                    '& .MuiChip-label': { px: 1.5, lineHeight: `${actionHeight}px` },
+                  }}
+                />
               )}
             </Box>
 
-            <Box sx={{ flex: '0 0 96px', display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ flex: '0 0 96px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               {showRollback ? (
                 <Button
                   size="small"
                   variant="outlined"
-                  sx={{ height: 32, minWidth: 96 }}
+                  sx={{ height: actionHeight, minHeight: actionHeight, minWidth: 96 }}
                   onClick={(e) => {
                     e.stopPropagation()
                     rollbackOrder(order)
@@ -334,7 +358,7 @@ const OrdersPage = () => {
               )}
             </Box>
 
-            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               {showCancel ? (
                 <IconButton
                   color="error"
