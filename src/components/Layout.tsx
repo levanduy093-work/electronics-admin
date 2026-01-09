@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react'
 import {
   AppBar,
   Box,
@@ -14,7 +14,8 @@ import {
   Toolbar,
   Typography,
   Button,
-} from '@mui/material';
+  Avatar,
+} from '@mui/material'
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
@@ -24,34 +25,43 @@ import {
   Logout as LogoutIcon,
   CardGiftcard as VoucherIcon,
   Reviews as ReviewsIcon,
-} from '@mui/icons-material';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+  LocalShipping as LocalShippingIcon,
+  Warehouse as WarehouseIcon,
+  Paid as PaidIcon,
+} from '@mui/icons-material'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 
-const drawerWidth = 240;
+const drawerWidth = 240
 
 const Layout = () => {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const { logout, user } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const menuItems = useMemo(
+    () => [
+      { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+      { text: 'Products', icon: <InventoryIcon />, path: '/products' },
+      { text: 'Orders', icon: <ShoppingCartIcon />, path: '/orders' },
+      { text: 'Shipments', icon: <LocalShippingIcon />, path: '/shipments' },
+      { text: 'Inventory', icon: <WarehouseIcon />, path: '/inventory' },
+      { text: 'Transactions', icon: <PaidIcon />, path: '/transactions' },
+      { text: 'Users', icon: <PeopleIcon />, path: '/users' },
+      { text: 'Vouchers', icon: <VoucherIcon />, path: '/vouchers' },
+      { text: 'Reviews', icon: <ReviewsIcon />, path: '/reviews' },
+    ],
+    [],
+  )
 
   const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-
-  const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { text: 'Products', icon: <InventoryIcon />, path: '/products' },
-    { text: 'Orders', icon: <ShoppingCartIcon />, path: '/orders' },
-    { text: 'Users', icon: <PeopleIcon />, path: '/users' },
-    { text: 'Vouchers', icon: <VoucherIcon />, path: '/vouchers' },
-    { text: 'Reviews', icon: <ReviewsIcon />, path: '/reviews' },
-  ];
+    setMobileOpen((prev) => !prev)
+  }
 
   const drawer = (
     <div>
-      <Toolbar>
+      <Toolbar sx={{ px: 2 }}>
         <Typography variant="h6" noWrap component="div">
           Electronics Admin
         </Typography>
@@ -62,7 +72,10 @@ const Layout = () => {
           <ListItem key={item.text} disablePadding>
             <ListItemButton
               selected={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                navigate(item.path)
+                setMobileOpen(false)
+              }}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />
@@ -71,19 +84,23 @@ const Layout = () => {
         ))}
       </List>
     </div>
-  );
+  )
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+    logout()
+    navigate('/login')
+  }
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex' }} className="app-shell">
       <CssBaseline />
       <AppBar
         position="fixed"
+        color="inherit"
+        elevation={1}
         sx={{
+          backgroundColor: '#ffffffcc',
+          backdropFilter: 'blur(12px)',
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
         }}
@@ -101,22 +118,35 @@ const Layout = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {menuItems.find((item) => item.path === location.pathname)?.text || 'Dashboard'}
           </Typography>
-          <Button color="inherit" onClick={handleLogout} startIcon={<LogoutIcon />}>
-            Logout
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {user?.name || 'Admin'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {user?.email}
+              </Typography>
+            </Box>
+            <Avatar sx={{ width: 36, height: 36 }}>{user?.name?.[0]?.toUpperCase() || 'A'}</Avatar>
+            <Button color="primary" onClick={handleLogout} startIcon={<LogoutIcon />}
+              sx={{ textTransform: 'none', ml: 1 }}
+            >
+              Logout
+            </Button>
+          </Box>
         </Toolbar>
       </AppBar>
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        aria-label="mailbox folders"
+        aria-label="navigation menu"
       >
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
+            keepMounted: true,
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
@@ -138,13 +168,13 @@ const Layout = () => {
       </Box>
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+        sx={{ flexGrow: 1, p: { xs: 2.5, md: 4 }, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
       >
         <Toolbar />
         <Outlet />
       </Box>
     </Box>
-  );
-};
+  )
+}
 
-export default Layout;
+export default Layout
