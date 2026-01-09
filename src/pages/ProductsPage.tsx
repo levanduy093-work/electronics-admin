@@ -61,7 +61,7 @@ const ProductsPage = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [dynamicSpecs, setDynamicSpecs] = useState<{ key: string; value: string }[]>([])
+  const [dynamicSpecs, setDynamicSpecs] = useState<{ id: string; key: string; value: string }[]>([])
   const { register, handleSubmit, reset, setValue } = useForm<ProductFormValues>()
 
   const fetchProducts = async () => {
@@ -93,7 +93,7 @@ const ProductsPage = () => {
       setValue('images', product.images?.join(', ') || '')
       setValue('datasheet', product.datasheet || '')
       const entries = Object.entries(product.specs || {})
-      setDynamicSpecs(entries.map(([k, v]) => ({ key: k, value: v ?? '' })))
+      setDynamicSpecs(entries.map(([k, v], idx) => ({ id: `${product._id}-${idx}`, key: k, value: v ?? '' })))
     } else {
       reset()
       setDynamicSpecs([])
@@ -309,14 +309,14 @@ const ProductsPage = () => {
               Thông số kỹ thuật
             </Typography>
             {dynamicSpecs.map((item, idx) => (
-              <React.Fragment key={`${item.key}-${idx}`}>
+              <React.Fragment key={item.id}>
                 <TextField
                   fullWidth
                   label="Tên thông số"
                   value={item.key}
                   onChange={(e) =>
                     setDynamicSpecs((prev) =>
-                      prev.map((spec, i) => (i === idx ? { ...spec, key: e.target.value } : spec))
+                      prev.map((spec) => (spec.id === item.id ? { ...spec, key: e.target.value } : spec))
                     )
                   }
                 />
@@ -326,7 +326,7 @@ const ProductsPage = () => {
                   value={item.value}
                   onChange={(e) =>
                     setDynamicSpecs((prev) =>
-                      prev.map((spec, i) => (i === idx ? { ...spec, value: e.target.value } : spec))
+                      prev.map((spec) => (spec.id === item.id ? { ...spec, value: e.target.value } : spec))
                     )
                   }
                   InputProps={{
@@ -334,7 +334,7 @@ const ProductsPage = () => {
                       <InputAdornment position="end">
                         <IconButton
                           aria-label="Xóa"
-                          onClick={() => setDynamicSpecs((prev) => prev.filter((_, i) => i !== idx))}
+                          onClick={() => setDynamicSpecs((prev) => prev.filter((spec) => spec.id !== item.id))}
                         >
                           <DeleteIcon />
                         </IconButton>
@@ -347,7 +347,12 @@ const ProductsPage = () => {
             <Button
               variant="outlined"
               sx={{ gridColumn: { sm: 'span 2' } }}
-              onClick={() => setDynamicSpecs((prev) => [...prev, { key: '', value: '' }])}
+              onClick={() =>
+                setDynamicSpecs((prev) => [
+                  ...prev,
+                  { id: `spec-${Date.now()}-${prev.length}`, key: '', value: '' },
+                ])
+              }
             >
               Thêm thông số
             </Button>
