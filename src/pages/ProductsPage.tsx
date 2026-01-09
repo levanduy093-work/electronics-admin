@@ -12,6 +12,7 @@ import {
   Stack,
   Chip,
   LinearProgress,
+  InputAdornment,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -38,6 +39,7 @@ interface Product {
     power?: string
     scope?: string
     voltage?: string
+    [key: string]: string | undefined
   }
 }
 
@@ -64,7 +66,9 @@ const ProductsPage = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const { register, handleSubmit, reset, setValue } = useForm<ProductFormValues>()
+  const [dynamicSpecs, setDynamicSpecs] = useState<{ key: string; value: string }[]>([])
+  const { register, handleSubmit, reset, setValue, watch } = useForm<ProductFormValues>()
+  const watchSpecs = watch(['resistance', 'tolerance', 'power', 'scope', 'voltage'])
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -85,6 +89,7 @@ const ProductsPage = () => {
   const handleOpen = (product: Product | null = null) => {
     setEditingProduct(product)
     if (product) {
+      const fixedSpecKeys = ['resistance', 'tolerance', 'power', 'scope', 'voltage']
       setValue('name', product.name)
       setValue('code', product.code || '')
       setValue('category', product.category || '')
@@ -99,8 +104,14 @@ const ProductsPage = () => {
       setValue('power', product.specs?.power || '')
       setValue('scope', product.specs?.scope || '')
       setValue('voltage', product.specs?.voltage || '')
+      const extraEntries = Object.entries(product.specs || {}).filter(
+        ([key]) => !fixedSpecKeys.includes(key)
+      )
+      setDynamicSpecs(extraEntries.map(([k, v]) => ({ key: k, value: v })))
+      setValue('extraSpecs' as any, '') // clear legacy field if persisted
     } else {
       reset()
+      setDynamicSpecs([])
     }
     setOpen(true)
   }
@@ -112,6 +123,20 @@ const ProductsPage = () => {
   }
 
   const onSubmit = async (data: ProductFormValues) => {
+    const fixedSpecs = {
+      resistance: data.resistance,
+      tolerance: data.tolerance,
+      power: data.power,
+      scope: data.scope,
+      voltage: data.voltage,
+    }
+    const dynamicSpecMap = dynamicSpecs.reduce<Record<string, string>>((acc, item) => {
+      if (item.key.trim() && item.value.trim()) {
+        acc[item.key.trim()] = item.value.trim()
+      }
+      return acc
+    }, {})
+
     const payload = {
       name: data.name,
       code: data.code || undefined,
@@ -129,13 +154,11 @@ const ProductsPage = () => {
             .map((url) => url.trim())
             .filter(Boolean)
         : [],
-      specs: {
-        resistance: data.resistance,
-        tolerance: data.tolerance,
-        power: data.power,
-        scope: data.scope,
-        voltage: data.voltage,
-      },
+      specs: Object.fromEntries(
+        Object.entries({ ...fixedSpecs, ...dynamicSpecMap }).filter(
+          ([, v]) => v !== undefined && v !== null && String(v).trim() !== ''
+        )
+      ),
     }
 
     try {
@@ -307,11 +330,133 @@ const ProductsPage = () => {
             <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
               Thông số kỹ thuật
             </Typography>
-            <TextField fullWidth label="Resistance" {...register('resistance')} />
-            <TextField fullWidth label="Tolerance" {...register('tolerance')} />
-            <TextField fullWidth label="Power" {...register('power')} />
-            <TextField fullWidth label="Scope" {...register('scope')} />
-            <TextField fullWidth label="Voltage" {...register('voltage')} />
+            <TextField
+              fullWidth
+              label="Resistance"
+              {...register('resistance')}
+              InputProps={{
+                endAdornment: watchSpecs?.[0] ? (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setValue('resistance', '')}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Tolerance"
+              {...register('tolerance')}
+              InputProps={{
+                endAdornment: watchSpecs?.[1] ? (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setValue('tolerance', '')}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Power"
+              {...register('power')}
+              InputProps={{
+                endAdornment: watchSpecs?.[2] ? (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setValue('power', '')}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Scope"
+              {...register('scope')}
+              InputProps={{
+                endAdornment: watchSpecs?.[3] ? (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setValue('scope', '')}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Voltage"
+              {...register('voltage')}
+              InputProps={{
+                endAdornment: watchSpecs?.[4] ? (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setValue('voltage', '')}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+            <Box
+              sx={{
+                gridColumn: { sm: 'span 2' },
+                display: 'grid',
+                gap: 1,
+              }}
+            >
+              {dynamicSpecs.map((item, idx) => (
+                <Box
+                  key={`${item.key}-${idx}`}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                    gap: 1,
+                  }}
+                >
+                  <TextField
+                    fullWidth
+                    label="Tên thông số"
+                    value={item.key}
+                    onChange={(e) =>
+                      setDynamicSpecs((prev) =>
+                        prev.map((spec, i) => (i === idx ? { ...spec, key: e.target.value } : spec))
+                      )
+                    }
+                  />
+                  <TextField
+                    fullWidth
+                    label="Giá trị"
+                    value={item.value}
+                    onChange={(e) =>
+                      setDynamicSpecs((prev) =>
+                        prev.map((spec, i) => (i === idx ? { ...spec, value: e.target.value } : spec))
+                      )
+                    }
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label="Xóa"
+                            onClick={() => setDynamicSpecs((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
+              ))}
+              <Button
+                variant="outlined"
+                onClick={() => setDynamicSpecs((prev) => [...prev, { key: '', value: '' }])}
+              >
+                Thêm thông số
+              </Button>
+            </Box>
 
             <TextField
               margin="normal"
