@@ -81,20 +81,21 @@ const UsersPage = () => {
   }
 
   const onSubmit = async (data: UserFormValues) => {
-    const payload: UserFormValues = {
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      avatar: data.avatar || undefined,
-      password: data.password || undefined,
-    }
     try {
       setSaving(true)
       if (editingUser) {
-        if (!data.password) delete payload.password
-        await client.patch(`/users/${editingUser._id}`, payload)
+        // Only update role for existing users
+        await client.patch(`/users/${editingUser._id}`, { role: data.role })
       } else {
-        await client.post('/users', { ...payload, password: data.password || 'Password123!' })
+        // Create new user with all fields
+        const payload: UserFormValues = {
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          avatar: data.avatar || undefined,
+          password: data.password || 'Password123!',
+        }
+        await client.post('/users', payload)
       }
       fetchUsers()
       handleClose()
@@ -180,8 +181,22 @@ const UsersPage = () => {
         <DialogTitle>{editingUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng'}</DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1, minWidth: 400 }}>
-            <TextField margin="normal" fullWidth label="Tên" required {...register('name')} />
-            <TextField margin="normal" fullWidth label="Email" required {...register('email')} />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Tên"
+              required
+              {...register('name')}
+              disabled={!!editingUser}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Email"
+              required
+              {...register('email')}
+              disabled={!!editingUser}
+            />
             <FormControl fullWidth margin="normal">
               <InputLabel id="role-label">Quyền</InputLabel>
               <Controller
@@ -196,14 +211,18 @@ const UsersPage = () => {
                 )}
               />
             </FormControl>
-            <TextField
-              margin="normal"
-              fullWidth
-              label={editingUser ? 'Mật khẩu (để trống nếu không đổi)' : 'Mật khẩu mặc định'}
-              type="password"
-              {...register('password')}
-            />
-            <TextField margin="normal" fullWidth label="Avatar URL" {...register('avatar')} />
+            {!editingUser && (
+              <>
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="Mật khẩu mặc định"
+                  type="password"
+                  {...register('password')}
+                />
+                <TextField margin="normal" fullWidth label="Avatar URL" {...register('avatar')} />
+              </>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
