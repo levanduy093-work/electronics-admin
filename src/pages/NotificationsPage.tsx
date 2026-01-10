@@ -37,6 +37,7 @@ interface AdminNotification {
   priority: 'low' | 'normal' | 'high'
   send_at?: string
   createdAt?: string
+  expires_at?: string
   targets?: NotificationTarget[]
   readCount?: number
   totalDeliveries?: number
@@ -63,6 +64,8 @@ const defaultValues: NotificationFormValues = {
   sendAt: '',
   expiresAt: '',
 }
+
+const TYPE_OPTIONS = ['system', 'promo', 'order']
 
 const NotificationsPage = () => {
   const [items, setItems] = useState<AdminNotification[]>([])
@@ -168,17 +171,29 @@ const NotificationsPage = () => {
   }
 
   const columns: GridColDef<AdminNotification>[] = useMemo(() => {
-    const safe = (params: any) => params?.value
     return [
       { field: 'title', headerName: 'Tiêu đề', flex: 1.5, minWidth: 200 },
       { field: 'type', headerName: 'Loại', width: 120 },
       { field: 'priority', headerName: 'Ưu tiên', width: 120 },
       {
+        field: 'send_at',
+        headerName: 'Gửi lúc',
+        width: 190,
+        valueGetter: (_value, row: AdminNotification) => row?.send_at || row?.createdAt,
+        valueFormatter: (value) => (value ? new Date(value as string).toLocaleString('vi-VN') : ''),
+      },
+      {
+        field: 'createdAt',
+        headerName: 'Tạo lúc',
+        width: 190,
+        valueFormatter: (value) => (value ? new Date(value as string).toLocaleString('vi-VN') : ''),
+      },
+      {
         field: 'scope',
         headerName: 'Phạm vi',
         width: 140,
-        valueGetter: (params) =>
-          params?.row?.targets?.some((t) => t.scope === 'user') ? 'User chỉ định' : 'Tất cả',
+        valueGetter: (_value, row: AdminNotification) =>
+          row?.targets?.some((t: NotificationTarget) => t.scope === 'user') ? 'User chỉ định' : 'Tất cả',
       },
       {
         field: 'delivery',
@@ -186,26 +201,21 @@ const NotificationsPage = () => {
         width: 180,
         renderCell: (params: GridRenderCellParams<AdminNotification>) => (
           <Stack direction="row" spacing={1} alignItems="center">
-            <Chip label={`${params.row.totalDeliveries ?? 0} gửi`} size="small" />
-            <Chip label={`${params.row.readCount ?? 0} đọc`} size="small" color="success" />
+            <Chip
+              label={`${params.row.totalDeliveries ?? 0} gửi`}
+              size="small"
+              sx={{ minWidth: 68, justifyContent: 'center' }}
+            />
+            <Chip
+              label={`${params.row.readCount ?? 0} đọc`}
+              size="small"
+              color="success"
+              sx={{ minWidth: 68, justifyContent: 'center' }}
+            />
           </Stack>
         ),
         sortable: false,
         filterable: false,
-      },
-      {
-        field: 'send_at',
-        headerName: 'Gửi lúc',
-        width: 180,
-        valueFormatter: (params) =>
-          safe(params) ? new Date(safe(params)).toLocaleString('vi-VN') : '',
-      },
-      {
-        field: 'createdAt',
-        headerName: 'Tạo lúc',
-        width: 180,
-        valueFormatter: (params) =>
-          safe(params) ? new Date(safe(params)).toLocaleString('vi-VN') : '',
       },
       {
         field: 'actions',
@@ -254,6 +264,10 @@ const NotificationsPage = () => {
           initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
           pageSizeOptions={[10, 20, 50]}
           disableRowSelectionOnClick
+          sx={{
+            '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
+            '& .MuiDataGrid-columnHeaders': { alignItems: 'center' },
+          }}
         />
       </PaperWrapper>
 
@@ -290,9 +304,22 @@ const NotificationsPage = () => {
               <Controller
                 name="type"
                 control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="Loại" placeholder="order / promo / system" fullWidth />
-                )}
+                render={({ field }) => {
+                  const value = field.value || 'system'
+                  const options = TYPE_OPTIONS.includes(value) ? TYPE_OPTIONS : [...TYPE_OPTIONS, value]
+                  return (
+                    <FormControl fullWidth>
+                      <InputLabel>Loại</InputLabel>
+                      <Select {...field} value={value} label="Loại">
+                        {options.map((opt) => (
+                          <MenuItem key={opt} value={opt}>
+                            {opt}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )
+                }}
               />
               <Controller
                 name="priority"
