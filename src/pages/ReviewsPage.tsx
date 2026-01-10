@@ -105,40 +105,37 @@ const ReviewsPage = () => {
 
         return (
           <Tooltip title={productName} arrow placement="bottom-start">
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              sx={{ py: 0.5, width: '100%', whiteSpace: 'normal' }}
-            >
-              <Avatar
-                variant="rounded"
-                src={product?.images?.[0]}
-                alt={productName}
-                sx={{
-                  width: 40,
-                  height: 40,
-                  bgcolor: product ? 'primary.light' : 'grey.200',
-                  color: product ? 'primary.contrastText' : 'text.secondary',
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}
-              >
-                {productName.charAt(0).toUpperCase()}
-              </Avatar>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, whiteSpace: 'normal' }}>
-                  {productName}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', lineHeight: 1.2, whiteSpace: 'normal' }}
+            <Box sx={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', whiteSpace: 'normal' }}>
+                <Avatar
+                  variant="rounded"
+                  src={product?.images?.[0]}
+                  alt={productName}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    bgcolor: product ? 'primary.light' : 'grey.200',
+                    color: product ? 'primary.contrastText' : 'text.secondary',
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
                 >
-                  #{shortId} {productCode}
-                </Typography>
-              </Box>
-            </Stack>
+                  {productName.charAt(0).toUpperCase()}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, whiteSpace: 'normal' }}>
+                    {productName}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', lineHeight: 1.2, whiteSpace: 'normal' }}
+                  >
+                    #{shortId} {productCode}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
           </Tooltip>
         )
       },

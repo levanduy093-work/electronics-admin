@@ -17,7 +17,7 @@ import {
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material'
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, ConfirmationNumber } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
 import client from '../api/client'
 
@@ -44,6 +44,12 @@ const UsersPage = () => {
   const [saving, setSaving] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const { register, handleSubmit, reset, setValue, control } = useForm<UserFormValues>()
+
+  // Voucher State
+  const [openVoucherDialog, setOpenVoucherDialog] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [voucherType, setVoucherType] = useState<'fixed' | 'shipping' | 'percentage'>('fixed')
+  const { register: registerVoucher, handleSubmit: handleSubmitVoucher, reset: resetVoucher } = useForm()
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -117,6 +123,54 @@ const UsersPage = () => {
     }
   }
 
+  // Voucher Handlers
+  const handleOpenVoucherDialog = (userId: string) => {
+    setSelectedUserId(userId)
+    setOpenVoucherDialog(true)
+    resetVoucher()
+    setVoucherType('fixed')
+  }
+
+  const handleCloseVoucherDialog = () => {
+    setOpenVoucherDialog(false)
+    setSelectedUserId(null)
+    resetVoucher()
+  }
+
+  const onSubmitVoucher = async (data: any) => {
+    if (!selectedUserId) return
+
+    const payload: any = {
+      code: data.code,
+      description: data.description,
+      minTotal: Number(data.minTotal),
+      expire: data.expire ? new Date(data.expire).toISOString() : undefined,
+      type: voucherType,
+    }
+
+    if (voucherType === 'percentage') {
+      payload.discountRate = Number(data.discountRate)
+      payload.maxDiscountPrice = data.maxDiscountPrice ? Number(data.maxDiscountPrice) : undefined
+      payload.discountPrice = 0
+    } else {
+      payload.discountPrice = Number(data.discountPrice)
+      payload.discountRate = undefined
+      payload.maxDiscountPrice = undefined
+    }
+
+    try {
+      setSaving(true)
+      await client.post(`/users/${selectedUserId}/vouchers`, payload)
+      alert('Đã thêm voucher thành công!')
+      handleCloseVoucherDialog()
+    } catch (error) {
+      console.error('Error adding voucher:', error)
+      alert('Có lỗi xảy ra khi thêm voucher')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const columns: GridColDef<User>[] = [
     { field: 'name', headerName: 'Tên', flex: 1, minWidth: 160 },
     { field: 'email', headerName: 'Email', flex: 1.2, minWidth: 220 },
@@ -124,9 +178,12 @@ const UsersPage = () => {
     {
       field: 'actions',
       headerName: 'Hành động',
-      width: 140,
+      width: 180,
       renderCell: (params: GridRenderCellParams<User>) => (
         <>
+          <IconButton onClick={() => handleOpenVoucherDialog(params.row._id)} color="success" title="Thêm voucher">
+            <ConfirmationNumber />
+          </IconButton>
           <IconButton onClick={() => handleOpen(params.row)} color="primary">
             <EditIcon />
           </IconButton>
@@ -229,6 +286,85 @@ const UsersPage = () => {
           <Button onClick={handleClose}>Hủy</Button>
           <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={saving}>
             {saving ? 'Đang lưu...' : 'Lưu'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Add Voucher */}
+      <Dialog open={openVoucherDialog} onClose={handleCloseVoucherDialog}>
+        <DialogTitle>Thêm voucher cho người dùng</DialogTitle>
+        <DialogContent>
+          <Box component="form" onSubmit={handleSubmitVoucher(onSubmitVoucher)} sx={{ mt: 1, minWidth: 400 }}>
+            <TextField margin="normal" fullWidth label="Mã voucher" required {...registerVoucher('code')} />
+            <TextField margin="normal" fullWidth label="Mô tả" {...registerVoucher('description')} />
+            <TextField
+              margin="normal"
+              fullWidth
+              select
+              label="Loại giảm giá"
+              SelectProps={{ native: true }}
+              value={voucherType}
+              onChange={(e) => setVoucherType(e.target.value as any)}
+            >
+              <option value="fixed">Giảm số tiền cố định</option>
+              <option value="percentage">Giảm theo % (có thể đặt mức tối đa)</option>
+              <option value="shipping">Giảm phí vận chuyển</option>
+            </TextField>
+
+            {voucherType === 'percentage' ? (
+              <>
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="Giảm (%)"
+                  type="number"
+                  inputProps={{ min: 0, max: 100, step: 1 }}
+                  {...registerVoucher('discountRate', { valueAsNumber: true })}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="Giảm tối đa (đ)"
+                  type="number"
+                  inputProps={{ min: 0, step: 1000 }}
+                  {...registerVoucher('maxDiscountPrice', { valueAsNumber: true })}
+                />
+              </>
+            ) : (
+              <TextField
+                margin="normal"
+                fullWidth
+                label={voucherType === 'shipping' ? 'Giảm phí ship (đ)' : 'Giảm giá (đ)'}
+                type="number"
+                inputProps={{ min: 0, step: 1000 }}
+                required
+                {...registerVoucher('discountPrice', { valueAsNumber: true })}
+              />
+            )}
+
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Đơn hàng tối thiểu"
+              type="number"
+              required
+              {...registerVoucher('minTotal', { valueAsNumber: true })}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Ngày hết hạn"
+              type="datetime-local"
+              InputLabelProps={{ shrink: true }}
+              required
+              {...registerVoucher('expire')}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseVoucherDialog}>Hủy</Button>
+          <Button onClick={handleSubmitVoucher(onSubmitVoucher)} variant="contained" disabled={saving}>
+            {saving ? 'Đang thêm...' : 'Thêm'}
           </Button>
         </DialogActions>
       </Dialog>
