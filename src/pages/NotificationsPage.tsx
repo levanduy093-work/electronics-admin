@@ -177,14 +177,14 @@ const NotificationsPage = () => {
       { field: 'priority', headerName: 'Ưu tiên', width: 120 },
       {
         field: 'send_at',
-        headerName: 'Gửi lúc',
+        headerName: 'Thời gian gửi',
         width: 190,
         valueGetter: (_value, row: AdminNotification) => row?.send_at || row?.createdAt,
         valueFormatter: (value) => (value ? new Date(value as string).toLocaleString('vi-VN') : ''),
       },
       {
-        field: 'createdAt',
-        headerName: 'Tạo lúc',
+        field: 'expires_at',
+        headerName: 'Hết hạn',
         width: 190,
         valueFormatter: (value) => (value ? new Date(value as string).toLocaleString('vi-VN') : ''),
       },
