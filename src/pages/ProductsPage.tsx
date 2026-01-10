@@ -308,7 +308,7 @@ const ProductsPage = () => {
             <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
               Thông số kỹ thuật
             </Typography>
-            {dynamicSpecs.map((item, idx) => (
+            {dynamicSpecs.map((item) => (
               <React.Fragment key={item.id}>
                 <TextField
                   fullWidth
