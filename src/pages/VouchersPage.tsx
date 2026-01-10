@@ -22,8 +22,11 @@ interface Voucher {
   code: string
   description?: string
   discountPrice: number
+  discountRate?: number
+  maxDiscountPrice?: number
   minTotal: number
   expire?: string
+  type?: 'fixed' | 'shipping' | 'percentage'
 }
 
 const VouchersPage = () => {
@@ -33,6 +36,7 @@ const VouchersPage = () => {
   const [saving, setSaving] = useState(false)
   const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null)
   const { register, handleSubmit, reset, setValue } = useForm()
+  const [type, setType] = useState<'fixed' | 'shipping' | 'percentage'>('fixed')
 
   const fetchVouchers = async () => {
     setLoading(true)
@@ -62,10 +66,14 @@ const VouchersPage = () => {
       setValue('code', voucher.code)
       setValue('description', voucher.description)
       setValue('discountPrice', voucher.discountPrice)
+      setValue('discountRate', voucher.discountRate)
+      setValue('maxDiscountPrice', voucher.maxDiscountPrice)
       setValue('minTotal', voucher.minTotal)
       setValue('expire', voucher.expire ? new Date(voucher.expire).toISOString().slice(0, 16) : '')
+      setType((voucher.type as any) || 'fixed')
     } else {
       reset()
+      setType('fixed')
     }
     setOpen(true)
   }
@@ -77,12 +85,22 @@ const VouchersPage = () => {
   }
 
   const onSubmit = async (data: any) => {
-    const payload = {
+    const payload: any = {
       code: data.code,
       description: data.description,
-      discountPrice: Number(data.discountPrice),
       minTotal: Number(data.minTotal),
       expire: data.expire ? new Date(data.expire).toISOString() : undefined,
+      type,
+    }
+
+    if (type === 'percentage') {
+      payload.discountRate = Number(data.discountRate)
+      payload.maxDiscountPrice = data.maxDiscountPrice ? Number(data.maxDiscountPrice) : undefined
+      payload.discountPrice = 0
+    } else {
+      payload.discountPrice = Number(data.discountPrice)
+      payload.discountRate = undefined
+      payload.maxDiscountPrice = undefined
     }
 
     try {
@@ -119,9 +137,14 @@ const VouchersPage = () => {
       field: 'discountPrice',
       headerName: 'Giảm giá',
       width: 140,
-      valueFormatter: (params) => {
-        const value = (params as any).value ?? (params as any).row?.discountPrice
-        const num = Number(value ?? 0)
+      renderCell: (params: GridRenderCellParams<Voucher>) => {
+        const row = params.row
+        if (row.type === 'percentage') {
+          const rate = Number(row.discountRate ?? 0)
+          const cap = row.maxDiscountPrice ? Number(row.maxDiscountPrice).toLocaleString('vi-VN') + ' đ' : 'không giới hạn'
+          return `${rate}% (tối đa ${cap})`
+        }
+        const num = Number(row.discountPrice ?? 0)
         return num.toLocaleString('vi-VN') + ' đ'
       },
     },
@@ -129,8 +152,8 @@ const VouchersPage = () => {
       field: 'minTotal',
       headerName: 'Đơn tối thiểu',
       width: 160,
-      valueFormatter: (params) => {
-        const value = (params as any).value ?? (params as any).row?.minTotal
+      renderCell: (params: GridRenderCellParams<Voucher>) => {
+        const value = params.row?.minTotal ?? 0
         const num = Number(value ?? 0)
         return num.toLocaleString('vi-VN') + ' đ'
       },
@@ -202,11 +225,46 @@ const VouchersPage = () => {
             <TextField
               margin="normal"
               fullWidth
-              label="Giảm giá"
-              type="number"
-              required
-              {...register('discountPrice', { valueAsNumber: true })}
-            />
+              select
+              label="Loại giảm giá"
+              SelectProps={{ native: true }}
+              value={type}
+              onChange={(e) => setType(e.target.value as any)}
+            >
+              <option value="fixed">Giảm số tiền cố định</option>
+              <option value="percentage">Giảm theo % (có thể đặt mức tối đa)</option>
+              <option value="shipping">Giảm phí vận chuyển</option>
+            </TextField>
+            {type === 'percentage' ? (
+              <>
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="Giảm (%)"
+                  type="number"
+                  inputProps={{ min: 0, max: 100, step: 1 }}
+                  {...register('discountRate', { valueAsNumber: true })}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="Giảm tối đa (đ)"
+                  type="number"
+                  inputProps={{ min: 0, step: 1000 }}
+                  {...register('maxDiscountPrice', { valueAsNumber: true })}
+                />
+              </>
+            ) : (
+              <TextField
+                margin="normal"
+                fullWidth
+                label={type === 'shipping' ? 'Giảm phí ship (đ)' : 'Giảm giá (đ)'}
+                type="number"
+                inputProps={{ min: 0, step: 1000 }}
+                required
+                {...register('discountPrice', { valueAsNumber: true })}
+              />
+            )}
             <TextField
               margin="normal"
               fullWidth
