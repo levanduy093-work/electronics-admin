@@ -150,7 +150,12 @@ const UsersPage = () => {
             Thêm, sửa quyền hạn và thông tin tài khoản.
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpen()}
+          sx={{ minWidth: 180, height: 40, px: 3, borderRadius: 1, alignSelf: 'flex-end', mt: 1 }}
+        >
           Thêm người dùng
         </Button>
       </Box>
