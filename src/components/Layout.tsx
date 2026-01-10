@@ -28,6 +28,7 @@ import {
   LocalShipping as LocalShippingIcon,
   Warehouse as WarehouseIcon,
   Paid as PaidIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -51,6 +52,7 @@ const Layout = () => {
       { text: 'Users', icon: <PeopleIcon />, path: '/users' },
       { text: 'Vouchers', icon: <VoucherIcon />, path: '/vouchers' },
       { text: 'Reviews', icon: <ReviewsIcon />, path: '/reviews' },
+      { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications' },
     ],
     [],
   )
