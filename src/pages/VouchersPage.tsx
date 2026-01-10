@@ -23,7 +23,7 @@ interface Voucher {
   description?: string
   discountPrice: number
   minTotal: number
-  expire: string
+  expire?: string
 }
 
 const VouchersPage = () => {
@@ -38,7 +38,13 @@ const VouchersPage = () => {
     setLoading(true)
     try {
       const response = await client.get('/vouchers')
-      setVouchers(response.data)
+      const normalized = (response.data as Voucher[]).map((v) => ({
+        ...v,
+        discountPrice: Number(v.discountPrice ?? 0),
+        minTotal: Number(v.minTotal ?? 0),
+        expire: v.expire,
+      }))
+      setVouchers(normalized)
     } catch (error) {
       console.error('Error fetching vouchers:', error)
     } finally {
@@ -76,7 +82,7 @@ const VouchersPage = () => {
       description: data.description,
       discountPrice: Number(data.discountPrice),
       minTotal: Number(data.minTotal),
-      expire: data.expire,
+      expire: data.expire ? new Date(data.expire).toISOString() : undefined,
     }
 
     try {
@@ -113,19 +119,33 @@ const VouchersPage = () => {
       field: 'discountPrice',
       headerName: 'Giảm giá',
       width: 140,
-      valueFormatter: (params) => Number((params as any).value || 0).toLocaleString('vi-VN') + ' đ',
+      valueFormatter: (params) => {
+        const value = (params as any).value ?? (params as any).row?.discountPrice
+        const num = Number(value ?? 0)
+        return num.toLocaleString('vi-VN') + ' đ'
+      },
     },
     {
       field: 'minTotal',
       headerName: 'Đơn tối thiểu',
       width: 160,
-      valueFormatter: (params) => Number((params as any).value || 0).toLocaleString('vi-VN') + ' đ',
+      valueFormatter: (params) => {
+        const value = (params as any).value ?? (params as any).row?.minTotal
+        const num = Number(value ?? 0)
+        return num.toLocaleString('vi-VN') + ' đ'
+      },
     },
     {
       field: 'expire',
       headerName: 'Hết hạn',
       width: 200,
-      valueFormatter: (params) => new Date((params as any).value as string).toLocaleString('vi-VN'),
+      renderCell: (params: GridRenderCellParams<Voucher>) => {
+        const raw = params.row?.expire
+        if (!raw) return '—'
+        const parsed = new Date(raw as string)
+        if (Number.isNaN(parsed.getTime())) return '—'
+        return parsed.toLocaleString('vi-VN')
+      },
     },
     {
       field: 'actions',
