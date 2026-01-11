@@ -16,7 +16,7 @@ import {
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material'
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
 import client from '../api/client'
 
@@ -57,6 +57,7 @@ interface ProductFormValues {
 
 const ProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([])
+  const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -224,9 +225,40 @@ const ProductsPage = () => {
     },
   ]
 
+  const normalizeText = (value?: string) =>
+    (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+
+  const fuzzyMatch = (haystack: string | undefined, needle: string) => {
+    if (!needle) return true
+    const h = normalizeText(haystack)
+    if (h.includes(needle)) return true
+    const tokens = needle.split(/\s+/).filter(Boolean)
+    if (!tokens.length) return true
+    // mọi token phải xuất hiện (partial prefix ok)
+    return tokens.every((t) => h.includes(t) || h.split(/\s+/).some((w) => w.startsWith(t)))
+  }
+
+  const normalizedSearch = normalizeText(search)
+  const filteredProducts = normalizedSearch
+    ? products.filter((p) => {
+        const haystacks = [
+          p.name,
+          p.code,
+          p.category,
+          p.description,
+          ...Object.entries(p.specs || {}).map(([k, v]) => `${k} ${v ?? ''}`),
+        ]
+        return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
+      })
+    : products
+
   return (
     <Box sx={{ width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, flexWrap: 'wrap' }}>
         <div>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Sản phẩm
@@ -235,15 +267,31 @@ const ProductsPage = () => {
             Quản lý danh mục, giá bán, tồn kho và thông số kỹ thuật.
           </Typography>
         </div>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-          Thêm sản phẩm
-        </Button>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, width: { xs: '100%', sm: 'auto' } }}>
+          <TextField
+            size="small"
+            placeholder="Tìm theo tên, mã, danh mục..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ minWidth: { xs: '100%', sm: 260 } }}
+          />
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+            Thêm sản phẩm
+          </Button>
+        </Stack>
       </Box>
 
       {loading && <LinearProgress />}
 
       <DataGrid
-        rows={products}
+        rows={filteredProducts}
         columns={columns}
         getRowId={(row) => row._id}
         autoHeight
