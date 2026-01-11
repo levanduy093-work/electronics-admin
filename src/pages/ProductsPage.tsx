@@ -14,6 +14,8 @@ import {
   LinearProgress,
   InputAdornment,
   FormHelperText,
+  Snackbar,
+  Alert,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -62,9 +64,19 @@ const ProductsPage = () => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [backgroundSaving, setBackgroundSaving] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [dynamicSpecs, setDynamicSpecs] = useState<{ id: string; key: string; value: string }[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [toast, setToast] = useState<{
+    open: boolean
+    message: string
+    severity: 'success' | 'error' | 'info'
+  }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  })
   const { register, handleSubmit, reset, setValue } = useForm<ProductFormValues>()
 
   const fetchProducts = async () => {
@@ -107,13 +119,18 @@ const ProductsPage = () => {
 
   const handleClose = () => {
     setOpen(false)
+    setSaving(false)
     setEditingProduct(null)
     reset()
     setImageFiles([])
   }
 
   const onSubmit = async (data: ProductFormValues) => {
-    const dynamicSpecMap = dynamicSpecs.reduce<Record<string, string>>((acc, item) => {
+    const productBeingEdited = editingProduct
+    const specsSnapshot = [...dynamicSpecs]
+    const filesSnapshot = [...imageFiles]
+
+    const dynamicSpecMap = specsSnapshot.reduce<Record<string, string>>((acc, item) => {
       if (item.key.trim() && item.value.trim()) {
         acc[item.key.trim()] = item.value.trim()
       }
@@ -128,14 +145,19 @@ const ProductsPage = () => {
       : []
 
     const folder =
-      editingProduct?._id
-        ? `electronics-shop/products/${editingProduct._id}`
+      productBeingEdited?._id
+        ? `electronics-shop/products/${productBeingEdited._id}`
         : `electronics-shop/products/temp-${Date.now()}-${slugify(data.name || 'product')}`
 
+    setSaving(true)
+    setBackgroundSaving(true)
+    setToast({ open: true, message: 'Đang lưu, upload sẽ chạy nền...', severity: 'info' })
+    handleClose()
+
     let uploadedFileUrls: string[] = []
-    if (imageFiles.length) {
+    if (filesSnapshot.length) {
       try {
-        uploadedFileUrls = await uploadImagesToCloud(imageFiles, folder)
+        uploadedFileUrls = await uploadImagesToCloud(filesSnapshot, folder)
       } catch (error) {
         console.error('Error uploading images:', error)
       }
@@ -174,19 +196,20 @@ const ProductsPage = () => {
     }
 
     try {
-      setSaving(true)
-      if (editingProduct) {
-        await client.patch(`/products/${editingProduct._id}`, payload)
+      if (productBeingEdited) {
+        await client.patch(`/products/${productBeingEdited._id}`, payload)
       } else {
         await client.post('/products', payload)
       }
+      setToast({ open: true, message: 'Lưu sản phẩm thành công', severity: 'success' })
       fetchProducts()
-      handleClose()
     } catch (error) {
       console.error('Error saving product:', error)
+      setToast({ open: true, message: 'Lưu sản phẩm thất bại. Vui lòng thử lại.', severity: 'error' })
     } finally {
-      setSaving(false)
       setImageFiles([])
+      setSaving(false)
+      setBackgroundSaving(false)
     }
   }
 
@@ -369,7 +392,14 @@ const ProductsPage = () => {
         </Stack>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(loading || backgroundSaving) && (
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+          <LinearProgress sx={{ flex: 1 }} color={backgroundSaving ? 'secondary' : 'primary'} />
+          <Typography variant="caption" color="text.secondary">
+            {backgroundSaving ? 'Đang lưu, upload chạy nền...' : 'Đang tải dữ liệu...'}
+          </Typography>
+        </Stack>
+      )}
 
       <DataGrid
         rows={filteredProducts}
@@ -523,6 +553,20 @@ const ProductsPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+          severity={toast.severity}
+          sx={{ width: '100%' }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
