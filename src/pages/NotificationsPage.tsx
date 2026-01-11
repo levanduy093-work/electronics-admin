@@ -16,10 +16,11 @@ import {
   Typography,
   Chip,
   IconButton,
+  InputAdornment,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material'
+import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
 import client from '../api/client'
 
@@ -69,6 +70,7 @@ const TYPE_OPTIONS = ['system', 'promo', 'order']
 
 const NotificationsPage = () => {
   const [items, setItems] = useState<AdminNotification[]>([])
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [open, setOpen] = useState(false)
@@ -237,9 +239,48 @@ const NotificationsPage = () => {
     ]
   }, [])
 
+  const normalizeText = (value?: string) =>
+    (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+
+  const fuzzyMatch = (haystack: string | undefined, needle: string) => {
+    if (!needle) return true
+    const h = normalizeText(haystack)
+    if (h.includes(needle)) return true
+    const tokens = needle.split(/\s+/).filter(Boolean)
+    if (!tokens.length) return true
+    return tokens.every((t) => h.includes(t) || h.split(/\s+/).some((w) => w.startsWith(t)))
+  }
+
+  const normalizedSearch = normalizeText(search)
+  const filteredItems = normalizedSearch
+    ? items.filter((n) => {
+        const haystacks = [
+          n.title,
+          n.body,
+          n.type,
+          n.priority,
+          n.metadata ? JSON.stringify(n.metadata) : '',
+        ]
+        return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
+      })
+    : items
+
   return (
     <Stack spacing={3}>
-      <Box className="page-header" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box
+        className="page-header"
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700 }} gutterBottom>
             Thông báo
@@ -248,9 +289,29 @@ const NotificationsPage = () => {
             Gửi thông báo tới tất cả người dùng hoặc user chỉ định (qua email).
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
-          Tạo thông báo
-        </Button>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          sx={{ alignItems: { sm: 'center' }, width: { xs: '100%', sm: 'auto' } }}
+        >
+          <TextField
+            size="small"
+            placeholder="Tìm theo tiêu đề, nội dung, loại..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ minWidth: { xs: '100%', sm: 260 } }}
+          />
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+            Tạo thông báo
+          </Button>
+        </Stack>
       </Box>
 
       {loading && <LinearProgress />}
@@ -258,7 +319,7 @@ const NotificationsPage = () => {
       <PaperWrapper>
         <DataGrid
           autoHeight
-          rows={items}
+          rows={filteredItems}
           columns={columns}
           getRowId={(row) => row._id}
           initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
