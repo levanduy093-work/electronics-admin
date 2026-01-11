@@ -132,16 +132,26 @@ const ProductsPage = () => {
         ? `electronics-shop/products/${editingProduct._id}`
         : `electronics-shop/products/temp-${Date.now()}-${slugify(data.name || 'product')}`
 
-    let uploadedUrls: string[] = []
+    let uploadedFileUrls: string[] = []
     if (imageFiles.length) {
       try {
-        uploadedUrls = await uploadImagesToCloud(imageFiles, folder)
+        uploadedFileUrls = await uploadImagesToCloud(imageFiles, folder)
       } catch (error) {
         console.error('Error uploading images:', error)
       }
     }
 
-    const mergedImages = Array.from(new Set([...urlListFromInput, ...uploadedUrls]))
+    let uploadedLinkUrls: string[] = []
+    if (urlListFromInput.length) {
+      try {
+        uploadedLinkUrls = await uploadUrlsToCloud(urlListFromInput, folder)
+      } catch (error) {
+        console.error('Error uploading image URLs:', error)
+        uploadedLinkUrls = urlListFromInput
+      }
+    }
+
+    const mergedImages = Array.from(new Set([...uploadedLinkUrls, ...uploadedFileUrls]))
     const latestOnly = mergedImages.length ? [mergedImages[mergedImages.length - 1]] : []
 
     const payload = {
@@ -299,6 +309,30 @@ const ProductsPage = () => {
       })
       return res.data?.secure_url || res.data?.url
     })
+    const results = await Promise.all(uploads)
+    return results.filter((url): url is string => Boolean(url))
+  }
+
+  const uploadUrlsToCloud = async (urls: string[], folder: string) => {
+    const uploads = urls.map(async (rawUrl) => {
+      const url = rawUrl.trim()
+      if (!url) return null
+      if (/res\.cloudinary\.com/i.test(url)) return url
+      try {
+        const res = await client.post(
+          '/upload/image/by-url',
+          { url },
+          {
+            params: { folder },
+          },
+        )
+        return res.data?.secure_url || res.data?.url || url
+      } catch (error) {
+        console.error('Error uploading image by URL:', error)
+        return url
+      }
+    })
+
     const results = await Promise.all(uploads)
     return results.filter((url): url is string => Boolean(url))
   }
