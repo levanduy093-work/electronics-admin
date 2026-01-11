@@ -10,10 +10,12 @@ import {
   IconButton,
   Typography,
   LinearProgress,
+  Stack,
+  InputAdornment,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material'
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
 import client from '../api/client'
 
@@ -31,6 +33,7 @@ interface Voucher {
 
 const VouchersPage = () => {
   const [vouchers, setVouchers] = useState<Voucher[]>([])
+  const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -189,21 +192,69 @@ const VouchersPage = () => {
     },
   ]
 
+  const normalizeText = (value?: string) =>
+    (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+
+  const fuzzyMatch = (haystack: string | undefined, needle: string) => {
+    if (!needle) return true
+    const h = normalizeText(haystack)
+    if (h.includes(needle)) return true
+    const tokens = needle.split(/\s+/).filter(Boolean)
+    if (!tokens.length) return true
+    return tokens.every((t) => h.includes(t) || h.split(/\s+/).some((w) => w.startsWith(t)))
+  }
+
+  const normalizedSearch = normalizeText(search)
+  const filteredVouchers = normalizedSearch
+    ? vouchers.filter((v) => {
+        const haystacks = [
+          v.code,
+          v.description,
+          v.type,
+          v.discountPrice?.toString(),
+          v.discountRate?.toString(),
+          v.maxDiscountPrice?.toString(),
+          v.minTotal?.toString(),
+        ]
+        return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
+      })
+    : vouchers
+
   return (
     <Box sx={{ height: '100%', width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, flexWrap: 'wrap' }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Voucher
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-          Thêm voucher
-        </Button>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, width: { xs: '100%', sm: 'auto' } }}>
+          <TextField
+            size="small"
+            placeholder="Tìm theo mã, mô tả, loại..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ minWidth: { xs: '100%', sm: 240 } }}
+          />
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+            Thêm voucher
+          </Button>
+        </Stack>
       </Box>
 
       {loading && <LinearProgress />}
 
       <DataGrid
-        rows={vouchers}
+        rows={filteredVouchers}
         columns={columns}
         getRowId={(row) => row._id}
         autoHeight
