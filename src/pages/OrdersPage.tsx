@@ -21,7 +21,7 @@ import {
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { Visibility as VisibilityIcon, Cancel as CancelIcon } from '@mui/icons-material'
+import { Visibility as VisibilityIcon, Cancel as CancelIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import client from '../api/client'
 
 interface OrderStatus {
@@ -147,6 +147,26 @@ const OrdersPage = () => {
     } finally {
       setUpdating(false)
       setUpdatingId(null)
+    }
+  }
+
+  const deleteOrder = async (order: Order) => {
+    const ok = window.confirm(`Bạn có chắc muốn xóa đơn ${order.code}?`)
+    if (!ok) return
+    try {
+      setUpdating(true)
+      setUpdatingId(order._id)
+      await client.delete(`/orders/${order._id}`)
+      setOrders((prev) => prev.filter((o) => o._id !== order._id))
+    } catch (error) {
+      console.error('Error deleting order:', error)
+      await fetchOrders()
+    } finally {
+      setUpdating(false)
+      setUpdatingId(null)
+      if (selectedOrder?._id === order._id) {
+        handleClose()
+      }
     }
   }
 
@@ -277,6 +297,7 @@ const OrdersPage = () => {
         const showRollback =
           order.isCancelled || order.status?.shipped || order.status?.packaged || order.status?.confirmed
         const showCancel = !order.isCancelled
+        const canDelete = true
 
         return (
           <Stack
@@ -369,6 +390,24 @@ const OrdersPage = () => {
                   disabled={disabled}
                 >
                   <CancelIcon />
+                </IconButton>
+              ) : (
+                <Box sx={{ width: 32 }} />
+              )}
+            </Box>
+
+            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              {canDelete ? (
+                <IconButton
+                  color="error"
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteOrder(order)
+                  }}
+                  disabled={disabled}
+                >
+                  <DeleteIcon />
                 </IconButton>
               ) : (
                 <Box sx={{ width: 32 }} />
