@@ -221,10 +221,13 @@ const ShipmentsPage = () => {
     {
       field: 'actions',
       headerName: 'Hành động',
-      width: 260,
+      width: 340,
       renderCell: (params: GridRenderCellParams<Shipment>) => {
         const shipment = params.row
         const disabled = updatingId === shipment._id
+        const actionHeight = 36
+        const actionWidth = 110
+        const iconBox = 32
         const nextStatus =
           shipment.status === 'in_transit'
             ? { label: 'Đang giao', value: 'out_for_delivery' }
@@ -235,35 +238,53 @@ const ShipmentsPage = () => {
           (shipment.paymentMethod || '').toLowerCase() === 'cod' &&
           (shipment.paymentStatus || '').toLowerCase() !== 'paid'
         return (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', minHeight: actionHeight }}>
             {nextStatus ? (
               <Button
                 size="small"
                 variant="contained"
                 color="primary"
+                sx={{ minWidth: actionWidth, height: actionHeight, minHeight: actionHeight }}
                 onClick={() => quickUpdateStatus(shipment, nextStatus.value)}
                 disabled={disabled}
               >
                 {nextStatus.label}
               </Button>
             ) : (
-              <Chip label="Đã hoàn tất" size="small" color="success" variant="outlined" />
+              <Chip
+                label="Đã hoàn tất"
+                size="small"
+                color="success"
+                variant="outlined"
+                sx={{ minWidth: actionWidth, height: actionHeight, '& .MuiChip-label': { lineHeight: `${actionHeight}px` } }}
+              />
             )}
             {canCollectCod && (
               <Button
                 size="small"
                 variant="contained"
                 color="success"
+                sx={{ minWidth: actionWidth, height: actionHeight, minHeight: actionHeight }}
                 onClick={() => quickUpdatePayment(shipment, 'paid')}
                 disabled={disabled}
               >
                 Thu COD
               </Button>
             )}
-            <IconButton onClick={() => handleOpen(params.row)} color="primary" disabled={disabled}>
+            <IconButton
+              onClick={() => handleOpen(params.row)}
+              color="primary"
+              disabled={disabled}
+              sx={{ width: iconBox, height: iconBox }}
+            >
               <EditIcon />
             </IconButton>
-            <IconButton onClick={() => handleDelete(params.row._id)} color="error" disabled={disabled}>
+            <IconButton
+              onClick={() => handleDelete(params.row._id)}
+              color="error"
+              disabled={disabled}
+              sx={{ width: iconBox, height: iconBox }}
+            >
               <DeleteIcon />
             </IconButton>
           </Stack>

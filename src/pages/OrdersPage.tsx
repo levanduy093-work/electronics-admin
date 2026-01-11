@@ -388,7 +388,7 @@ const OrdersPage = () => {
       renderCell: (params: GridRenderCellParams<Order>) => {
         const shipment = getShipmentForOrder(params.row._id)
         return (
-          <Stack spacing={0.5} sx={{ width: '100%', alignItems: 'center' }}>
+          <Stack spacing={0.5} sx={{ width: '100%', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             {getShipmentStatusChip(shipment)}
             {getShipmentPaymentChip(shipment, params.row)}
             {shipment?.trackingNumber && (
@@ -518,7 +518,7 @@ const OrdersPage = () => {
 
             <Box
               sx={{
-                flex: '1 1 180px',
+                flex: '0 0 auto',
                 display: 'flex',
                 gap: 0.75,
                 alignItems: 'center',
