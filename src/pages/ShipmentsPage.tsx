@@ -49,7 +49,9 @@ const ShipmentsPage = () => {
       const res = await client.get('/shipments')
       const normalized = (res.data || []).map((s: Shipment) => ({
         ...s,
+        expectedDelivery: s.expectedDelivery || null,
         createdAt: s.createdAt || s.updatedAt || null,
+        updatedAt: s.updatedAt || null,
       }))
       setShipments(normalized)
     } catch (error) {
@@ -201,22 +203,47 @@ const ShipmentsPage = () => {
       field: 'expectedDelivery',
       headerName: 'Dự kiến giao',
       width: 200,
-      valueFormatter: (params) => {
-        const value = (params as any)?.value
-        if (!value) return ''
-        return new Date(value as string).toLocaleString('vi-VN')
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params: GridRenderCellParams<Shipment>) => {
+        const value = params.row.expectedDelivery || null
+        if (!value)
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
+              <Typography variant="body2" color="text.secondary">
+                —
+              </Typography>
+            </Box>
+          )
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
+            <Typography variant="body2">{new Date(value as any).toLocaleString('vi-VN')}</Typography>
+          </Box>
+        )
       },
     },
     {
       field: 'createdAt',
       headerName: 'Tạo lúc',
       width: 180,
-      valueGetter: (params) => params?.row?.createdAt || params?.row?.updatedAt || '',
-      renderCell: (params) => (
-        <Typography variant="body2">
-          {params.value ? new Date(params.value as any).toLocaleString('vi-VN') : ''}
-        </Typography>
-      ),
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params: GridRenderCellParams<Shipment>) => {
+        const value = params.row.createdAt || params.row.updatedAt || null
+        if (!value)
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
+              <Typography variant="body2" color="text.secondary">
+                —
+              </Typography>
+            </Box>
+          )
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
+            <Typography variant="body2">{new Date(value as any).toLocaleString('vi-VN')}</Typography>
+          </Box>
+        )
+      },
     },
     {
       field: 'actions',
@@ -238,7 +265,12 @@ const ShipmentsPage = () => {
           (shipment.paymentMethod || '').toLowerCase() === 'cod' &&
           (shipment.paymentStatus || '').toLowerCase() !== 'paid'
         return (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', minHeight: actionHeight }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ width: '100%', minHeight: actionHeight, height: '100%', justifyContent: 'center' }}
+          >
             {nextStatus ? (
               <Button
                 size="small"
