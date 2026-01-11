@@ -13,6 +13,7 @@ import {
   Chip,
   LinearProgress,
   InputAdornment,
+  FormHelperText,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -63,6 +64,7 @@ const ProductsPage = () => {
   const [saving, setSaving] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [dynamicSpecs, setDynamicSpecs] = useState<{ id: string; key: string; value: string }[]>([])
+  const [imageFiles, setImageFiles] = useState<File[]>([])
   const { register, handleSubmit, reset, setValue } = useForm<ProductFormValues>()
 
   const fetchProducts = async () => {
@@ -83,6 +85,7 @@ const ProductsPage = () => {
 
   const handleOpen = (product: Product | null = null) => {
     setEditingProduct(product)
+    setImageFiles([])
     if (product) {
       setValue('name', product.name)
       setValue('code', product.code || '')
@@ -106,6 +109,7 @@ const ProductsPage = () => {
     setOpen(false)
     setEditingProduct(null)
     reset()
+    setImageFiles([])
   }
 
   const onSubmit = async (data: ProductFormValues) => {
@@ -115,6 +119,30 @@ const ProductsPage = () => {
       }
       return acc
     }, {})
+
+    const urlListFromInput = data.images
+      ? data.images
+          .split(',')
+          .map((url) => url.trim())
+          .filter(Boolean)
+      : []
+
+    const folder =
+      editingProduct?._id
+        ? `electronics-shop/products/${editingProduct._id}`
+        : `electronics-shop/products/temp-${Date.now()}-${slugify(data.name || 'product')}`
+
+    let uploadedUrls: string[] = []
+    if (imageFiles.length) {
+      try {
+        uploadedUrls = await uploadImagesToCloud(imageFiles, folder)
+      } catch (error) {
+        console.error('Error uploading images:', error)
+      }
+    }
+
+    const mergedImages = Array.from(new Set([...urlListFromInput, ...uploadedUrls]))
+    const latestOnly = mergedImages.length ? [mergedImages[mergedImages.length - 1]] : []
 
     const payload = {
       name: data.name,
@@ -127,12 +155,7 @@ const ProductsPage = () => {
       stock: Number(data.stock),
       description: data.description,
       datasheet: data.datasheet,
-      images: data.images
-        ? data.images
-            .split(',')
-            .map((url) => url.trim())
-            .filter(Boolean)
-        : [],
+      images: latestOnly,
       specs: Object.fromEntries(
         Object.entries({ ...dynamicSpecMap }).filter(
           ([, v]) => v !== undefined && v !== null && String(v).trim() !== ''
@@ -153,6 +176,7 @@ const ProductsPage = () => {
       console.error('Error saving product:', error)
     } finally {
       setSaving(false)
+      setImageFiles([])
     }
   }
 
@@ -256,6 +280,29 @@ const ProductsPage = () => {
       })
     : products
 
+  const slugify = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48)
+
+  const uploadImagesToCloud = async (files: File[], folder: string) => {
+    const uploads = files.map(async (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await client.post('/upload/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: { folder },
+      })
+      return res.data?.secure_url || res.data?.url
+    })
+    const results = await Promise.all(uploads)
+    return results.filter((url): url is string => Boolean(url))
+  }
+
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, flexWrap: 'wrap' }}>
@@ -352,6 +399,26 @@ const ProductsPage = () => {
               sx={{ gridColumn: { sm: 'span 2' } }}
               {...register('images')}
             />
+            <Box sx={{ gridColumn: { sm: 'span 2' } }}>
+              <Button variant="outlined" component="label">
+                Chọn ảnh từ máy
+                <input
+                  hidden
+                  multiple
+                  accept="image/*"
+                  type="file"
+                  onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+                />
+              </Button>
+              <FormHelperText>
+                Có thể dán URL hoặc chọn file. Khi lưu, file sẽ được tải lên Cloudinary và lưu URL trả về.
+              </FormHelperText>
+              {imageFiles.length > 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {imageFiles.length} file đã chọn: {imageFiles.map((f) => f.name).join(', ')}
+                </Typography>
+              )}
+            </Box>
 
             <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
               Thông số kỹ thuật
