@@ -139,9 +139,9 @@ const TransactionsPage = () => {
       field: 'paidAt',
       headerName: 'Thanh toán lúc',
       width: 200,
-      valueFormatter: (params) => {
-        const val = (params as any)?.value
-        return val ? new Date(val as string).toLocaleString('vi-VN') : ''
+      renderCell: (params: GridRenderCellParams<Transaction>) => {
+        const value = params?.row?.paidAt || params?.row?.createdAt || params?.row?.updatedAt
+        return <span>{value ? new Date(value).toLocaleString('vi-VN') : '—'}</span>
       },
     },
     {
