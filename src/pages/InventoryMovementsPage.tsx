@@ -138,7 +138,23 @@ const InventoryMovementsPage = () => {
   }
 
   const columns: GridColDef<Movement>[] = [
-    { field: 'productId', headerName: 'Product ID', flex: 1, minWidth: 200 },
+    {
+      field: 'productId',
+      headerName: 'Sản phẩm',
+      flex: 1,
+      minWidth: 220,
+      renderCell: (params: GridRenderCellParams<Movement>) => {
+        const product = products.find((p) => p._id === params.row.productId)
+        const label = product
+          ? `${product.name}${product.code ? ` (${product.code})` : ''}`
+          : params.row.productId
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Typography variant="body2">{label}</Typography>
+          </Box>
+        )
+      },
+    },
     {
       field: 'type',
       headerName: 'Loại',

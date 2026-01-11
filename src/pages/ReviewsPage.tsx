@@ -23,6 +23,7 @@ interface Review {
   rating: number
   comment?: string
   createdAt: string
+  updatedAt?: string
 }
 
 interface ProductOption {
@@ -154,10 +155,19 @@ const ReviewsPage = () => {
     },
     { field: 'comment', headerName: 'Bình luận', flex: 1, minWidth: 220 },
     {
-      field: 'createdAt',
+      field: 'updatedAt',
       headerName: 'Ngày',
-      width: 180,
-      valueFormatter: (params) => new Date((params as any).value as string).toLocaleString('vi-VN'),
+      width: 200,
+      renderCell: (params: GridRenderCellParams<Review>) => {
+        const value = params.row.updatedAt || params.row.createdAt
+        const date = value ? new Date(value) : null
+        const label = date && !Number.isNaN(date.getTime()) ? date.toLocaleString('vi-VN') : '—'
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Typography variant="body2">{label}</Typography>
+          </Box>
+        )
+      },
     },
     {
       field: 'actions',
