@@ -30,7 +30,8 @@ interface Movement {
   type: string
   quantity: number
   note?: string
-  createdAt?: string
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
 
 interface ProductOption {
@@ -59,7 +60,25 @@ const InventoryMovementsPage = () => {
     setLoading(true)
     try {
       const res = await client.get('/inventory-movements')
-      setMovements(res.data)
+      const normalized = (res.data || []).map(
+        (m: Movement & { created_at?: string | Date; updated_at?: string | Date; _id?: any }) => {
+          const normalizeId = (value: any) =>
+            typeof value === 'string' ? value : value?.toString?.() ?? value
+          const normalizeDate = (value?: string | Date) =>
+            value ? new Date(value).toISOString() : undefined
+          const createdRaw = m.createdAt ?? m.created_at
+          const updatedRaw = m.updatedAt ?? m.updated_at
+
+          return {
+            ...m,
+            _id: normalizeId((m as any)._id),
+            productId: normalizeId((m as any).productId),
+            createdAt: normalizeDate(createdRaw) ?? normalizeDate(updatedRaw),
+            updatedAt: normalizeDate(updatedRaw),
+          }
+        },
+      )
+      setMovements(normalized)
     } catch (error) {
       console.error('Error fetching inventory movements:', error)
     } finally {
@@ -126,6 +145,9 @@ const InventoryMovementsPage = () => {
     }
   }
 
+  const getCreatedValue = (row: Movement | any) =>
+    row?.createdAt ?? row?.created_at ?? row?.updatedAt ?? row?.updated_at ?? ''
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Bạn có chắc muốn xóa phiếu kho này?')) {
       try {
@@ -175,8 +197,17 @@ const InventoryMovementsPage = () => {
       field: 'createdAt',
       headerName: 'Ngày tạo',
       width: 180,
-      valueFormatter: (params) =>
-        (params as any).value ? new Date((params as any).value as string).toLocaleString('vi-VN') : '',
+      valueGetter: (params) => getCreatedValue(params.row),
+      renderCell: (params) => {
+        const raw = getCreatedValue(params.row)
+        const dateValue = raw ? new Date(raw as any) : null
+        const display = dateValue && !Number.isNaN(dateValue.getTime()) ? dateValue.toLocaleString('vi-VN') : ''
+        return (
+          <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+            <Typography variant="body2">{display}</Typography>
+          </Box>
+        )
+      },
     },
     {
       field: 'actions',

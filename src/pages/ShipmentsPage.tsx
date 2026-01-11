@@ -26,7 +26,8 @@ interface Shipment {
   status: string
   statusHistory?: { status: string; at?: string }[]
   expectedDelivery?: string
-  createdAt?: string
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
 
 const ShipmentsPage = () => {
@@ -41,7 +42,11 @@ const ShipmentsPage = () => {
     setLoading(true)
     try {
       const res = await client.get('/shipments')
-      setShipments(res.data)
+      const normalized = (res.data || []).map((s: Shipment) => ({
+        ...s,
+        createdAt: s.createdAt || s.updatedAt || null,
+      }))
+      setShipments(normalized)
     } catch (error) {
       console.error('Error fetching shipments:', error)
     } finally {
@@ -129,8 +134,12 @@ const ShipmentsPage = () => {
       field: 'createdAt',
       headerName: 'Tạo lúc',
       width: 180,
-      valueFormatter: (params) =>
-        (params as any).value ? new Date((params as any).value as string).toLocaleString('vi-VN') : '',
+      valueGetter: (params) => params?.row?.createdAt || params?.row?.updatedAt || '',
+      renderCell: (params) => (
+        <Typography variant="body2">
+          {params.value ? new Date(params.value as any).toLocaleString('vi-VN') : ''}
+        </Typography>
+      ),
     },
     {
       field: 'actions',
