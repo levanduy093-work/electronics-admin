@@ -15,6 +15,8 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Delete as DeleteIcon } from '@mui/icons-material'
 import client from '../api/client'
+import { io, Socket } from 'socket.io-client'
+import { useRef } from 'react'
 
 interface Review {
   _id: string
@@ -38,6 +40,8 @@ const ReviewsPage = () => {
   const [products, setProducts] = useState<ProductOption[]>([])
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const socketRef = useRef<Socket | null>(null)
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
   const productMap = useMemo(() => new Map(products.map((product) => [product._id, product])), [products])
   const selectedProduct = useMemo(
@@ -73,6 +77,23 @@ const ReviewsPage = () => {
 
   useEffect(() => {
     fetchInitialData()
+    const socket = io(apiBaseUrl, { transports: ['websocket'] })
+    socketRef.current = socket
+    const handler = (payload: any) => {
+      if (payload?.collection === 'reviews') {
+        fetchReviews(selectedProductId ?? undefined)
+      }
+      if (payload?.collection === 'products') {
+        // refresh product options to keep filter list up to date
+        client.get('/products').then((res) => setProducts(res.data)).catch(() => undefined)
+      }
+    }
+    socket.on('db_change', handler)
+    return () => {
+      socket.off('db_change', handler)
+      socket.disconnect()
+      socketRef.current = null
+    }
   }, [])
 
   const handleDelete = async (id: string) => {
