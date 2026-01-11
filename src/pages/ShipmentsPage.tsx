@@ -11,6 +11,8 @@ import {
   Typography,
   Chip,
   LinearProgress,
+  MenuItem,
+  Stack,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
@@ -28,6 +30,8 @@ interface Shipment {
   expectedDelivery?: string
   createdAt?: string | Date
   updatedAt?: string | Date
+  paymentMethod?: string
+  paymentStatus?: string
 }
 
 const ShipmentsPage = () => {
@@ -36,6 +40,7 @@ const ShipmentsPage = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Shipment | null>(null)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
   const { register, handleSubmit, reset, setValue } = useForm()
 
   const fetchShipments = async () => {
@@ -58,6 +63,38 @@ const ShipmentsPage = () => {
     fetchShipments()
   }, [])
 
+  const statusOptions = [
+    { value: 'in_transit', label: 'Đang vận chuyển' },
+    { value: 'out_for_delivery', label: 'Đang giao hàng' },
+    { value: 'delivered', label: 'Đã nhận hàng' },
+  ]
+
+  const paymentStatusOptions = [
+    { value: 'pending', label: 'Chờ thu COD' },
+    { value: 'paid', label: 'Đã thanh toán' },
+  ]
+
+  const getStatusChip = (status?: string) => {
+    if (!status) return <Chip label="Chưa rõ" size="small" variant="outlined" />
+    const map: any = {
+      in_transit: { label: 'Đang vận chuyển', color: 'info' },
+      out_for_delivery: { label: 'Đang giao hàng', color: 'primary' },
+      delivered: { label: 'Đã nhận hàng', color: 'success' },
+    }
+    const mapped = map[status] || { label: status, color: 'default' }
+    return <Chip label={mapped.label} color={mapped.color} size="small" variant="outlined" />
+  }
+
+  const getPaymentChip = (shipment: Shipment) => {
+    const method = (shipment.paymentMethod || '').toLowerCase()
+    const status = (shipment.paymentStatus || '').toLowerCase()
+    if (method === 'cod') {
+      if (status === 'paid') return <Chip label="COD: Đã thu" size="small" color="success" variant="outlined" />
+      return <Chip label="COD: Chưa thu" size="small" color="warning" variant="outlined" />
+    }
+    return <Chip label="Đã thanh toán" size="small" color="success" variant="outlined" />
+  }
+
   const handleOpen = (shipment: Shipment | null = null) => {
     setEditing(shipment)
     if (shipment) {
@@ -65,9 +102,14 @@ const ShipmentsPage = () => {
       setValue('carrier', shipment.carrier)
       setValue('trackingNumber', shipment.trackingNumber)
       setValue('status', shipment.status)
+      setValue('paymentMethod', shipment.paymentMethod || 'cod')
+      setValue('paymentStatus', shipment.paymentStatus || (shipment.paymentMethod === 'cod' ? 'pending' : 'paid'))
       setValue('expectedDelivery', shipment.expectedDelivery ? new Date(shipment.expectedDelivery).toISOString().slice(0, 16) : '')
     } else {
-      reset()
+      reset({
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
+      })
     }
     setOpen(true)
   }
@@ -85,6 +127,8 @@ const ShipmentsPage = () => {
       trackingNumber: data.trackingNumber,
       status: data.status,
       expectedDelivery: data.expectedDelivery || undefined,
+      paymentMethod: data.paymentMethod,
+      paymentStatus: data.paymentStatus,
     }
     try {
       setSaving(true)
@@ -113,6 +157,30 @@ const ShipmentsPage = () => {
     }
   }
 
+  const quickUpdateStatus = async (shipment: Shipment, status: string) => {
+    try {
+      setUpdatingId(shipment._id)
+      await client.patch(`/shipments/${shipment._id}`, { status })
+      await fetchShipments()
+    } catch (error) {
+      console.error('Error updating shipment status:', error)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  const quickUpdatePayment = async (shipment: Shipment, status: string) => {
+    try {
+      setUpdatingId(shipment._id)
+      await client.patch(`/shipments/${shipment._id}`, { paymentStatus: status })
+      await fetchShipments()
+    } catch (error) {
+      console.error('Error updating shipment payment:', error)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   const columns: GridColDef<Shipment>[] = [
     { field: 'orderId', headerName: 'Order ID', flex: 1, minWidth: 200 },
     { field: 'carrier', headerName: 'Hãng VC', width: 140 },
@@ -121,14 +189,23 @@ const ShipmentsPage = () => {
       field: 'status',
       headerName: 'Trạng thái',
       width: 150,
-      renderCell: (params: GridRenderCellParams<Shipment>) => <Chip label={params.value} color="primary" size="small" />,
+      renderCell: (params: GridRenderCellParams<Shipment>) => getStatusChip(params.row.status),
+    },
+    {
+      field: 'paymentStatus',
+      headerName: 'Thanh toán',
+      width: 160,
+      renderCell: (params: GridRenderCellParams<Shipment>) => getPaymentChip(params.row),
     },
     {
       field: 'expectedDelivery',
       headerName: 'Dự kiến giao',
       width: 200,
-      valueFormatter: (params) =>
-        (params as any).value ? new Date((params as any).value as string).toLocaleString('vi-VN') : '',
+      valueFormatter: (params) => {
+        const value = (params as any)?.value
+        if (!value) return ''
+        return new Date(value as string).toLocaleString('vi-VN')
+      },
     },
     {
       field: 'createdAt',
@@ -144,17 +221,54 @@ const ShipmentsPage = () => {
     {
       field: 'actions',
       headerName: 'Hành động',
-      width: 140,
-      renderCell: (params: GridRenderCellParams<Shipment>) => (
-        <>
-          <IconButton onClick={() => handleOpen(params.row)} color="primary">
-            <EditIcon />
-          </IconButton>
-          <IconButton onClick={() => handleDelete(params.row._id)} color="error">
-            <DeleteIcon />
-          </IconButton>
-        </>
-      ),
+      width: 260,
+      renderCell: (params: GridRenderCellParams<Shipment>) => {
+        const shipment = params.row
+        const disabled = updatingId === shipment._id
+        const nextStatus =
+          shipment.status === 'in_transit'
+            ? { label: 'Đang giao', value: 'out_for_delivery' }
+            : shipment.status === 'out_for_delivery'
+              ? { label: 'Đã nhận', value: 'delivered' }
+              : null
+        const canCollectCod =
+          (shipment.paymentMethod || '').toLowerCase() === 'cod' &&
+          (shipment.paymentStatus || '').toLowerCase() !== 'paid'
+        return (
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+            {nextStatus ? (
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={() => quickUpdateStatus(shipment, nextStatus.value)}
+                disabled={disabled}
+              >
+                {nextStatus.label}
+              </Button>
+            ) : (
+              <Chip label="Đã hoàn tất" size="small" color="success" variant="outlined" />
+            )}
+            {canCollectCod && (
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                onClick={() => quickUpdatePayment(shipment, 'paid')}
+                disabled={disabled}
+              >
+                Thu COD
+              </Button>
+            )}
+            <IconButton onClick={() => handleOpen(params.row)} color="primary" disabled={disabled}>
+              <EditIcon />
+            </IconButton>
+            <IconButton onClick={() => handleDelete(params.row._id)} color="error" disabled={disabled}>
+              <DeleteIcon />
+            </IconButton>
+          </Stack>
+        )
+      },
       sortable: false,
       filterable: false,
     },
@@ -190,7 +304,24 @@ const ShipmentsPage = () => {
             <TextField margin="normal" fullWidth label="Order ID" required {...register('orderId')} />
             <TextField margin="normal" fullWidth label="Hãng vận chuyển" required {...register('carrier')} />
             <TextField margin="normal" fullWidth label="Mã vận đơn" required {...register('trackingNumber')} />
-            <TextField margin="normal" fullWidth label="Trạng thái" required {...register('status')} />
+            <TextField margin="normal" fullWidth label="Trạng thái" required select {...register('status')}>
+              {statusOptions.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField margin="normal" fullWidth label="Hình thức thanh toán" required select {...register('paymentMethod')}>
+              <MenuItem value="cod">COD</MenuItem>
+              <MenuItem value="vnpay">VNPAY</MenuItem>
+            </TextField>
+            <TextField margin="normal" fullWidth label="Trạng thái thanh toán" required select {...register('paymentStatus')}>
+              {paymentStatusOptions.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               margin="normal"
               fullWidth

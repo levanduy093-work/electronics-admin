@@ -62,8 +62,19 @@ interface Order {
   createdAt?: string
 }
 
+interface Shipment {
+  _id: string
+  orderId: string
+  status: string
+  paymentMethod?: string
+  paymentStatus?: string
+  carrier?: string
+  trackingNumber?: string
+}
+
 const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([])
+  const [shipments, setShipments] = useState<Shipment[]>([])
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -82,8 +93,21 @@ const OrdersPage = () => {
     }
   }
 
+  const fetchShipments = async () => {
+    try {
+      const response = await client.get('/shipments')
+      const data = response.data || []
+      setShipments(data)
+      return data
+    } catch (error) {
+      console.error('Error fetching shipments:', error)
+      return []
+    }
+  }
+
   useEffect(() => {
     fetchOrders()
+    fetchShipments()
   }, [])
 
   const handleOpen = (order: Order) => {
@@ -109,7 +133,7 @@ const OrdersPage = () => {
         },
       }
       await client.patch(`/orders/${target._id}`, payload)
-      await fetchOrders()
+      await Promise.all([fetchOrders(), fetchShipments()])
       if (!order) handleClose()
     } catch (error) {
       console.error('Error updating order status:', error)
@@ -130,6 +154,74 @@ const OrdersPage = () => {
       if (!order) handleClose()
     } catch (error) {
       console.error('Error cancelling order:', error)
+    } finally {
+      setUpdating(false)
+      setUpdatingId(null)
+    }
+  }
+
+  const ensureShipmentForOrder = async (order: Order) => {
+    const existing = getShipmentForOrder(order._id)
+    if (existing) return existing
+    const latest = await fetchShipments()
+    const found = latest.find((s) => s.orderId === order._id)
+    if (found) return found
+
+    const paymentMethod = normalizePaymentMethod(order.payment)
+    const payload = {
+      orderId: order._id,
+      carrier: 'Nội bộ',
+      trackingNumber: order.code,
+      status: 'in_transit',
+      statusHistory: [{ status: 'in_transit', at: new Date().toISOString() }],
+      paymentMethod,
+      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
+    }
+    const res = await client.post('/shipments', payload)
+    await fetchShipments()
+    return res.data as Shipment
+  }
+
+  const updateShipmentStatus = async (order: Order, nextStatus: string) => {
+    try {
+      setUpdating(true)
+      setUpdatingId(order._id)
+      const shipment = await ensureShipmentForOrder(order)
+      if (!shipment?._id) return
+      await client.patch(`/shipments/${shipment._id}`, { status: nextStatus })
+      await fetchShipments()
+      await fetchOrders()
+    } catch (error) {
+      console.error('Error updating shipment status:', error)
+    } finally {
+      setUpdating(false)
+      setUpdatingId(null)
+    }
+  }
+
+  const updateShipmentPaymentStatus = async (order: Order, paymentStatus: string) => {
+    try {
+      setUpdating(true)
+      setUpdatingId(order._id)
+      const shipment = await ensureShipmentForOrder(order)
+      if (!shipment?._id) return
+      await client.patch(`/shipments/${shipment._id}`, { paymentStatus })
+      await Promise.all([fetchShipments(), fetchOrders()])
+    } catch (error) {
+      console.error('Error updating shipment payment status:', error)
+    } finally {
+      setUpdating(false)
+      setUpdatingId(null)
+    }
+  }
+
+  const quickCreateShipment = async (order: Order) => {
+    try {
+      setUpdating(true)
+      setUpdatingId(order._id)
+      await ensureShipmentForOrder(order)
+    } catch (error) {
+      console.error('Error creating shipment:', error)
     } finally {
       setUpdating(false)
       setUpdatingId(null)
@@ -203,6 +295,35 @@ const OrdersPage = () => {
     return <Chip label={status} size="small" color="default" variant="outlined" />
   }
 
+  const normalizePaymentMethod = (payment?: string | null) => (payment || '').trim().toLowerCase()
+  const getShipmentForOrder = (orderId: string) => shipments.find((s) => s.orderId === orderId)
+
+  const shipmentStatusMap: Record<
+    string,
+    { label: string; color: 'default' | 'warning' | 'info' | 'primary' | 'success' }
+  > = {
+    in_transit: { label: 'Đang vận chuyển', color: 'info' },
+    out_for_delivery: { label: 'Đang giao hàng', color: 'primary' },
+    delivered: { label: 'Đã nhận hàng', color: 'success' },
+  }
+
+  const getShipmentStatusChip = (shipment?: Shipment) => {
+    if (!shipment) return <Chip label="Chưa tạo" size="small" variant="outlined" color="default" />
+    const mapped = shipmentStatusMap[shipment.status] || { label: shipment.status, color: 'default' as const }
+    return <Chip label={mapped.label} size="small" color={mapped.color} variant="outlined" />
+  }
+
+  const getShipmentPaymentChip = (shipment?: Shipment, order?: Order) => {
+    const paymentMethod = normalizePaymentMethod(shipment?.paymentMethod || order?.payment)
+    if (!paymentMethod) return <Chip label="Thanh toán" size="small" variant="outlined" color="default" />
+    const paymentStatus = (shipment?.paymentStatus || order?.paymentStatus || '').toLowerCase()
+    if (paymentMethod === 'cod') {
+      if (paymentStatus === 'paid') return <Chip label="COD: Đã thu" size="small" color="success" variant="outlined" />
+      return <Chip label="COD: Chưa thu" size="small" color="warning" variant="outlined" />
+    }
+    return <Chip label="Đã thanh toán" size="small" color="success" variant="outlined" />
+  }
+
   const formatDateTime = (value?: string) =>
     value ? new Date(value).toLocaleString('vi-VN', { hour12: false }) : '--'
 
@@ -259,6 +380,29 @@ const OrdersPage = () => {
       filterable: false,
     },
     {
+      field: 'shipmentStatus',
+      headerName: 'Vận chuyển',
+      headerAlign: 'center',
+      align: 'center',
+      minWidth: 220,
+      renderCell: (params: GridRenderCellParams<Order>) => {
+        const shipment = getShipmentForOrder(params.row._id)
+        return (
+          <Stack spacing={0.5} sx={{ width: '100%', alignItems: 'center' }}>
+            {getShipmentStatusChip(shipment)}
+            {getShipmentPaymentChip(shipment, params.row)}
+            {shipment?.trackingNumber && (
+              <Typography variant="caption" color="text.secondary" noWrap>
+                Mã: {shipment.trackingNumber}
+              </Typography>
+            )}
+          </Stack>
+        )
+      },
+      sortable: false,
+      filterable: false,
+    },
+    {
       field: 'createdAt',
       headerName: 'Ngày tạo',
       headerAlign: 'center',
@@ -275,7 +419,7 @@ const OrdersPage = () => {
     {
       field: 'actions',
       headerName: 'Thao tác',
-      minWidth: 340,
+      minWidth: 520,
       flex: 1,
       renderCell: (params: GridRenderCellParams<Order>) => {
         const order = params.row
@@ -294,8 +438,30 @@ const OrdersPage = () => {
             : null,
         ].filter(Boolean) as { label: string; action: () => void; color: 'primary' | 'secondary' }[]
 
-        const showRollback =
-          order.isCancelled || order.status?.shipped || order.status?.packaged || order.status?.confirmed
+        const shipment = getShipmentForOrder(order._id)
+        const shippingActions =
+          order.status?.shipped && !order.isCancelled
+            ? shipment
+              ? [
+                  shipment.status === 'in_transit'
+                    ? { label: 'Đang giao', action: () => updateShipmentStatus(order, 'out_for_delivery'), color: 'secondary' as const }
+                    : null,
+                  shipment.status === 'out_for_delivery'
+                    ? { label: 'Đã nhận', action: () => updateShipmentStatus(order, 'delivered'), color: 'secondary' as const }
+                    : null,
+                ].filter(Boolean) as { label: string; action: () => void; color: 'primary' | 'secondary' }[]
+              : [{ label: 'Tạo vận đơn', action: () => quickCreateShipment(order), color: 'secondary' as const }]
+            : []
+
+        const canConfirmCod =
+          shipment &&
+          normalizePaymentMethod(shipment.paymentMethod || order.payment) === 'cod' &&
+          (shipment.paymentStatus || order.paymentStatus)?.toLowerCase() !== 'paid'
+
+        const hasAnyStatus = Boolean(
+          order.status?.ordered || order.status?.confirmed || order.status?.packaged || order.status?.shipped
+        )
+        const showRollback = order.isCancelled || hasAnyStatus
         const showCancel = !order.isCancelled
         const canDelete = true
 
@@ -304,7 +470,7 @@ const OrdersPage = () => {
             direction="row"
             spacing={1}
             alignItems="center"
-            sx={{ width: '100%', height: '100%', minHeight: 48, justifyContent: 'flex-start' }}
+            sx={{ width: '100%', height: '100%', minHeight: 48, justifyContent: 'flex-start', flexWrap: 'wrap' }}
           >
             <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               <IconButton
@@ -317,16 +483,7 @@ const OrdersPage = () => {
               </IconButton>
             </Box>
 
-            <Box
-              sx={{
-                flex: '0 0 auto',
-                display: 'flex',
-                gap: 0.75,
-                alignItems: 'center',
-                minHeight: 36,
-                height: '100%',
-              }}
-            >
+            <Box sx={{ flex: '1 1 200px', display: 'flex', gap: 0.75, alignItems: 'center', minHeight: 36, height: '100%' }}>
               {nextActions.length > 0 ? (
                 nextActions.map((btn, idx) => (
                   <Button
@@ -334,7 +491,7 @@ const OrdersPage = () => {
                     color={btn.color}
                     size="small"
                     variant="contained"
-                    sx={{ height: actionHeight, minHeight: actionHeight, px: 1.5, minWidth: 100 }}
+                    sx={{ height: actionHeight, minHeight: actionHeight, px: 1.25, minWidth: 92 }}
                     onClick={(e) => {
                       e.stopPropagation()
                       btn.action()
@@ -359,7 +516,70 @@ const OrdersPage = () => {
               )}
             </Box>
 
-            <Box sx={{ flex: '0 0 96px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Box
+              sx={{
+                flex: '1 1 180px',
+                display: 'flex',
+                gap: 0.75,
+                alignItems: 'center',
+                minHeight: 36,
+                height: '100%',
+                justifyContent: 'flex-start',
+              }}
+            >
+              {order.status?.shipped && shippingActions.length > 0 ? (
+                shippingActions.map((btn, idx) => (
+                  <Button
+                    key={idx}
+                    color={btn.color}
+                    size="small"
+                    variant="outlined"
+                    sx={{ height: actionHeight, minHeight: actionHeight, px: 1.1, minWidth: 110 }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      btn.action()
+                    }}
+                    disabled={disabled}
+                  >
+                    {btn.label}
+                  </Button>
+                ))
+              ) : (
+                <Box sx={{ height: actionHeight, minHeight: actionHeight, minWidth: 120 }} />
+              )}
+            </Box>
+
+            <Box sx={{ flex: '0 0 120px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              {canConfirmCod ? (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="success"
+                  sx={{ height: actionHeight, minHeight: actionHeight, minWidth: 110 }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    updateShipmentPaymentStatus(order, 'paid')
+                  }}
+                  disabled={disabled}
+                >
+                  Thu COD
+                </Button>
+              ) : (
+                <Box sx={{ height: actionHeight, minHeight: actionHeight, minWidth: 120 }} />
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                flex: '1 1 220px',
+                display: 'flex',
+                gap: 0.75,
+                alignItems: 'center',
+                minHeight: 36,
+                height: '100%',
+                justifyContent: 'flex-start',
+              }}
+            >
               {showRollback ? (
                 <Button
                   size="small"
@@ -374,25 +594,24 @@ const OrdersPage = () => {
                   Hoàn tác
                 </Button>
               ) : (
-                <Box sx={{ height: 32 }} />
+                <Box sx={{ height: actionHeight, minHeight: actionHeight, minWidth: 100 }} />
               )}
-            </Box>
-
-            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               {showCancel ? (
-                <IconButton
-                  color="error"
+                <Button
                   size="small"
+                  variant="outlined"
+                  color="error"
+                  sx={{ height: actionHeight, minHeight: actionHeight, minWidth: 96 }}
                   onClick={(e) => {
                     e.stopPropagation()
                     cancelOrder(order)
                   }}
                   disabled={disabled}
                 >
-                  <CancelIcon />
-                </IconButton>
+                  Hủy đơn
+                </Button>
               ) : (
-                <Box sx={{ width: 32 }} />
+                <Box sx={{ height: actionHeight, minHeight: actionHeight, minWidth: 100 }} />
               )}
             </Box>
 
@@ -439,11 +658,12 @@ const OrdersPage = () => {
 
         <DataGrid
           rows={orders}
-          columns={columns}
-          getRowId={(row) => row._id}
-          autoHeight
-          rowHeight={64}
-          columnHeaderHeight={56}
+        columns={columns}
+        getRowId={(row) => row._id}
+        autoHeight
+        rowHeight={88}
+        getRowHeight={() => 96}
+        columnHeaderHeight={56}
           initialState={{
             pagination: {
               paginationModel: { page: 0, pageSize: 10 },
