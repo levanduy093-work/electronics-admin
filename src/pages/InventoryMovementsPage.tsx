@@ -15,6 +15,8 @@ import {
   FormControl,
   Chip,
   LinearProgress,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
@@ -31,13 +33,27 @@ interface Movement {
   createdAt?: string
 }
 
+interface ProductOption {
+  _id: string
+  name: string
+  code?: string
+  category?: string
+  description?: string
+  specs?: Record<string, string | undefined>
+  stock?: number
+}
+
 const InventoryMovementsPage = () => {
   const [movements, setMovements] = useState<Movement[]>([])
+  const [products, setProducts] = useState<ProductOption[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [productsLoading, setProductsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Movement | null>(null)
-  const { register, handleSubmit, reset, setValue, control } = useForm()
+  const { register, handleSubmit, reset, setValue, control } = useForm({
+    defaultValues: { productId: '', type: 'inbound', quantity: undefined, note: '' },
+  })
 
   const fetchMovements = async () => {
     setLoading(true)
@@ -51,8 +67,21 @@ const InventoryMovementsPage = () => {
     }
   }
 
+  const fetchProducts = async () => {
+    setProductsLoading(true)
+    try {
+      const res = await client.get('/products')
+      setProducts(res.data)
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    } finally {
+      setProductsLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchMovements()
+    fetchProducts()
   }, [])
 
   const handleOpen = (movement: Movement | null = null) => {
@@ -63,7 +92,7 @@ const InventoryMovementsPage = () => {
       setValue('quantity', movement.quantity)
       setValue('note', movement.note || '')
     } else {
-      reset({ type: 'inbound' })
+      reset({ productId: '', type: 'inbound', quantity: undefined, note: '' })
     }
     setOpen(true)
   }
@@ -71,7 +100,7 @@ const InventoryMovementsPage = () => {
   const handleClose = () => {
     setOpen(false)
     setEditing(null)
-    reset({ type: 'inbound' })
+    reset({ productId: '', type: 'inbound', quantity: undefined, note: '' })
   }
 
   const onSubmit = async (data: any) => {
@@ -152,6 +181,22 @@ const InventoryMovementsPage = () => {
     },
   ]
 
+  const normalizeText = (value?: string) =>
+    (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+
+  const fuzzyMatch = (haystack: string | undefined, needle: string) => {
+    if (!needle) return true
+    const h = normalizeText(haystack)
+    if (h.includes(needle)) return true
+    const tokens = needle.split(/\s+/).filter(Boolean)
+    if (!tokens.length) return true
+    return tokens.every((t) => h.includes(t) || h.split(/\s+/).some((w) => w.startsWith(t)))
+  }
+
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -179,7 +224,76 @@ const InventoryMovementsPage = () => {
         <DialogTitle>{editing ? 'Chỉnh sửa phiếu kho' : 'Thêm phiếu kho'}</DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1, minWidth: 420 }}>
-            <TextField margin="normal" fullWidth label="Product ID" required {...register('productId')} />
+            <Controller
+              name="productId"
+              control={control}
+              defaultValue=""
+              rules={{ required: 'Vui lòng chọn sản phẩm' }}
+              render={({ field, fieldState }) => {
+                const selectedProduct = products.find((p) => p._id === field.value) || null
+                return (
+                  <Autocomplete
+                    fullWidth
+                    options={products}
+                    value={selectedProduct}
+                    loading={productsLoading}
+                    onChange={(_, value) => field.onChange(value?._id ?? '')}
+                    getOptionLabel={(option) =>
+                      option?.name ? `${option.name}${option.code ? ` (${option.code})` : ''}` : ''
+                    }
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    filterOptions={(options, { inputValue }) => {
+                      const normalized = normalizeText(inputValue)
+                      if (!normalized) return options
+                      return options.filter((opt) => {
+                        const haystacks = [
+                          opt.name,
+                          opt.code,
+                          opt.category,
+                          opt.description,
+                          ...Object.entries(opt.specs || {}).map(([k, v]) => `${k} ${v ?? ''}`),
+                        ]
+                        return haystacks.some((h) => fuzzyMatch(h, normalized))
+                      })
+                    }}
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Box>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            {option.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {option.code ? `${option.code} • ` : ''}
+                            {option.category || 'Chưa có danh mục'}
+                            {typeof option.stock === 'number' ? ` • Tồn: ${option.stock}` : ''}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        margin="normal"
+                        fullWidth
+                        label="Sản phẩm"
+                        required
+                        error={!!fieldState.error}
+                        helperText={fieldState.error?.message}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {productsLoading ? <CircularProgress color="inherit" size={18} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                )
+              }}
+            />
             <FormControl fullWidth margin="normal">
               <InputLabel id="type-label">Loại</InputLabel>
               <Controller
