@@ -300,7 +300,7 @@ const BannersPage = () => {
     {
       field: 'imageUrl',
       headerName: 'Ảnh',
-      width: 130,
+      width: 150,
       renderCell: (params: GridRenderCellParams<string>) =>
         params.value ? (
           <Box
@@ -319,8 +319,8 @@ const BannersPage = () => {
     {
       field: 'subtitle',
       headerName: 'Mô tả',
-      flex: 1.2,
-      minWidth: 200,
+      flex: 1.4,
+      minWidth: 260,
       renderCell: (params) => (
         <Typography variant="body2" color="text.secondary" noWrap>
           {params.value || '-'}
@@ -330,13 +330,13 @@ const BannersPage = () => {
     {
       field: 'ctaLabel',
       headerName: 'Nhãn',
-      width: 140,
+      width: 160,
       renderCell: (params) => <Typography variant="body2">{params.value || '-'}</Typography>,
     },
     {
       field: 'productId',
       headerName: 'Sản phẩm',
-      minWidth: 180,
+      minWidth: 220,
       renderCell: (params) => {
         const product = products.find((p) => p._id === params.value)
         return (
@@ -351,7 +351,7 @@ const BannersPage = () => {
     {
       field: 'isActive',
       headerName: 'Trạng thái',
-      width: 130,
+      width: 140,
       renderCell: (params) => (
         <Chip
           label={params.value ? 'Hiển thị' : 'Ẩn'}
@@ -363,7 +363,7 @@ const BannersPage = () => {
     {
       field: 'reorder',
       headerName: 'Sắp xếp',
-      width: 140,
+      width: 160,
       sortable: false,
       filterable: false,
       renderCell: (params) => {
@@ -405,7 +405,7 @@ const BannersPage = () => {
     {
       field: 'actions',
       headerName: 'Hành động',
-      width: 150,
+      width: 170,
       sortable: false,
       filterable: false,
       renderCell: (params) => (
@@ -474,6 +474,18 @@ const BannersPage = () => {
           },
         }}
         pageSizeOptions={[5, 10, 20]}
+        rowHeight={72}
+        columnHeaderHeight={54}
+        sx={{
+          '& .MuiDataGrid-cell': {
+            display: 'flex',
+            alignItems: 'center',
+          },
+          '& .MuiDataGrid-columnHeaders': {
+            display: 'flex',
+            alignItems: 'center',
+          },
+        }}
       />
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
