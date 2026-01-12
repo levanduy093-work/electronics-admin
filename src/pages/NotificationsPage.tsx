@@ -42,6 +42,7 @@ interface AdminNotification {
   targets?: NotificationTarget[]
   readCount?: number
   totalDeliveries?: number
+  metadata?: any
 }
 
 interface NotificationFormValues {

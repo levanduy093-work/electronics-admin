@@ -164,7 +164,7 @@ const OrdersPage = () => {
     const existing = getShipmentForOrder(order._id)
     if (existing) return existing
     const latest = await fetchShipments()
-    const found = latest.find((s) => s.orderId === order._id)
+    const found = latest.find((s: Shipment) => s.orderId === order._id)
     if (found) return found
 
     const paymentMethod = normalizePaymentMethod(order.payment)

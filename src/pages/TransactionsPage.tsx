@@ -28,6 +28,7 @@ interface Transaction {
   status: string
   paidAt?: string
   createdAt?: string
+  updatedAt?: string
 }
 
 const TransactionsPage = () => {

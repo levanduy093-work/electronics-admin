@@ -52,7 +52,12 @@ const InventoryMovementsPage = () => {
   const [productsLoading, setProductsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Movement | null>(null)
-  const { register, handleSubmit, reset, setValue, control } = useForm({
+  const { register, handleSubmit, reset, setValue, control } = useForm<{
+    productId: string
+    type: string
+    quantity: number
+    note: string
+  }>({
     defaultValues: { productId: '', type: 'inbound', quantity: undefined, note: '' },
   })
 
@@ -108,8 +113,7 @@ const InventoryMovementsPage = () => {
     if (movement) {
       setValue('productId', movement.productId)
       setValue('type', movement.type)
-      setValue('quantity', movement.quantity)
-      setValue('note', movement.note || '')
+      setValue('quantity', movement.quantity ?? 0)
     } else {
       reset({ productId: '', type: 'inbound', quantity: undefined, note: '' })
     }
@@ -197,7 +201,7 @@ const InventoryMovementsPage = () => {
       field: 'createdAt',
       headerName: 'Ngày tạo',
       width: 180,
-      valueGetter: (params) => getCreatedValue(params.row),
+      valueGetter: (_value, row) => getCreatedValue(row),
       renderCell: (params) => {
         const raw = getCreatedValue(params.row)
         const dateValue = raw ? new Date(raw as any) : null

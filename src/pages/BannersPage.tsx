@@ -301,11 +301,11 @@ const BannersPage = () => {
       field: 'imageUrl',
       headerName: 'Ảnh',
       width: 150,
-      renderCell: (params: GridRenderCellParams<string>) =>
+      renderCell: (params: GridRenderCellParams) =>
         params.value ? (
           <Box
             component="img"
-            src={params.value}
+            src={params.value as string}
             alt={params.row.title}
             sx={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 1 }}
           />
