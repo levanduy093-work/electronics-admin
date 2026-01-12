@@ -13,6 +13,7 @@ import ShipmentsPage from './pages/ShipmentsPage'
 import InventoryMovementsPage from './pages/InventoryMovementsPage'
 import TransactionsPage from './pages/TransactionsPage'
 import NotificationsPage from './pages/NotificationsPage'
+import BannersPage from './pages/BannersPage'
 import './App.css'
 
 const theme = createTheme({
@@ -69,6 +70,7 @@ function App() {
                 <Route path="/vouchers" element={<VouchersPage />} />
                 <Route path="/reviews" element={<ReviewsPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/banners" element={<BannersPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

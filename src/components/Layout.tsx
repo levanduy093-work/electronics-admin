@@ -29,6 +29,7 @@ import {
   Warehouse as WarehouseIcon,
   Paid as PaidIcon,
   Notifications as NotificationsIcon,
+  Collections as CollectionsIcon,
 } from '@mui/icons-material'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -45,6 +46,7 @@ const Layout = () => {
     () => [
       { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
       { text: 'Products', icon: <InventoryIcon />, path: '/products' },
+      { text: 'Banners', icon: <CollectionsIcon />, path: '/banners' },
       { text: 'Orders', icon: <ShoppingCartIcon />, path: '/orders' },
       { text: 'Shipments', icon: <LocalShippingIcon />, path: '/shipments' },
       { text: 'Inventory', icon: <WarehouseIcon />, path: '/inventory' },
