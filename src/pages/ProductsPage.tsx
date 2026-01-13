@@ -77,7 +77,13 @@ const ProductsPage = () => {
     message: '',
     severity: 'info',
   })
-  const { register, handleSubmit, reset, setValue } = useForm<ProductFormValues>()
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm<ProductFormValues>()
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -109,7 +115,13 @@ const ProductsPage = () => {
       setValue('images', product.images?.join(', ') || '')
       setValue('datasheet', product.datasheet || '')
       const entries = Object.entries(product.specs || {})
-      setDynamicSpecs(entries.map(([k, v], idx) => ({ id: `${product._id}-${idx}`, key: k, value: v ?? '' })))
+      setDynamicSpecs(
+        entries.map(([k, v], idx) => ({
+          id: `${product._id}-${idx}`,
+          key: k,
+          value: v !== null && v !== undefined ? String(v) : '',
+        })),
+      )
     } else {
       reset()
       setDynamicSpecs([])
@@ -131,8 +143,10 @@ const ProductsPage = () => {
     const filesSnapshot = [...imageFiles]
 
     const dynamicSpecMap = specsSnapshot.reduce<Record<string, string>>((acc, item) => {
-      if (item.key.trim() && item.value.trim()) {
-        acc[item.key.trim()] = item.value.trim()
+      const k = String(item.key || '').trim()
+      const v = String(item.value || '').trim()
+      if (k && v) {
+        acc[k] = v
       }
       return acc
     }, {})
@@ -360,6 +374,15 @@ const ProductsPage = () => {
     return results.filter((url): url is string => Boolean(url))
   }
 
+  const onError = (errors: any) => {
+    console.error('Form validation errors:', errors)
+    setToast({
+      open: true,
+      message: 'Vui lòng kiểm tra lại thông tin (các trường bắt buộc)',
+      severity: 'error',
+    })
+  }
+
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, flexWrap: 'wrap' }}>
@@ -428,17 +451,46 @@ const ProductsPage = () => {
               gap: 2,
             }}
           >
-            <TextField margin="normal" fullWidth label="Tên" required {...register('name')} />
-            <TextField margin="normal" fullWidth label="Mã sản phẩm" {...register('code')} />
-            <TextField margin="normal" fullWidth label="Danh mục" {...register('category')} />
-            <TextField margin="normal" fullWidth label="Link datasheet" {...register('datasheet')} />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Tên"
+              required
+              error={!!errors.name}
+              helperText={errors.name?.message}
+              {...register('name', { required: 'Tên sản phẩm là bắt buộc' })}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Mã sản phẩm"
+              {...register('code')}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Danh mục"
+              {...register('category')}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Link datasheet"
+              {...register('datasheet')}
+            />
             <TextField
               margin="normal"
               fullWidth
               label="Giá gốc"
               type="number"
               required
-              {...register('originalPrice', { valueAsNumber: true })}
+              error={!!errors.originalPrice}
+              helperText={errors.originalPrice?.message}
+              {...register('originalPrice', {
+                valueAsNumber: true,
+                required: 'Giá gốc là bắt buộc',
+                min: { value: 0, message: 'Giá không được âm' },
+              })}
             />
             <TextField
               margin="normal"
@@ -446,7 +498,13 @@ const ProductsPage = () => {
               label="Giá bán"
               type="number"
               required
-              {...register('salePrice', { valueAsNumber: true })}
+              error={!!errors.salePrice}
+              helperText={errors.salePrice?.message}
+              {...register('salePrice', {
+                valueAsNumber: true,
+                required: 'Giá bán là bắt buộc',
+                min: { value: 0, message: 'Giá không được âm' },
+              })}
             />
             <TextField
               margin="normal"
@@ -454,7 +512,13 @@ const ProductsPage = () => {
               label="Tồn kho"
               type="number"
               required
-              {...register('stock', { valueAsNumber: true })}
+              error={!!errors.stock}
+              helperText={errors.stock?.message}
+              {...register('stock', {
+                valueAsNumber: true,
+                required: 'Số lượng tồn kho là bắt buộc',
+                min: { value: 0, message: 'Tồn kho không được âm' },
+              })}
             />
             <TextField
               margin="normal"
@@ -548,7 +612,7 @@ const ProductsPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Hủy</Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={saving}>
+          <Button onClick={handleSubmit(onSubmit, onError)} variant="contained" disabled={saving}>
             {saving ? 'Đang lưu...' : 'Lưu'}
           </Button>
         </DialogActions>
