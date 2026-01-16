@@ -68,6 +68,7 @@ const ProductsPage = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [dynamicSpecs, setDynamicSpecs] = useState<{ id: string; key: string; value: string }[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imageUrls, setImageUrls] = useState<{ id: string; url: string }[]>([])
   const [toast, setToast] = useState<{
     open: boolean
     message: string
@@ -112,8 +113,11 @@ const ProductsPage = () => {
       setValue('salePrice', product.price.salePrice)
       setValue('stock', product.stock)
       setValue('description', product.description || '')
-      setValue('images', product.images?.join(', ') || '')
       setValue('datasheet', product.datasheet || '')
+      
+      const currentImages = product.images || []
+      setImageUrls(currentImages.map((url, index) => ({ id: `img-${index}-${Date.now()}`, url })))
+      
       const entries = Object.entries(product.specs || {})
       setDynamicSpecs(
         entries.map(([k, v], idx) => ({
@@ -125,6 +129,7 @@ const ProductsPage = () => {
     } else {
       reset()
       setDynamicSpecs([])
+      setImageUrls([])
     }
     setOpen(true)
   }
@@ -135,12 +140,14 @@ const ProductsPage = () => {
     setEditingProduct(null)
     reset()
     setImageFiles([])
+    setImageUrls([])
   }
 
   const onSubmit = async (data: ProductFormValues) => {
     const productBeingEdited = editingProduct
     const specsSnapshot = [...dynamicSpecs]
     const filesSnapshot = [...imageFiles]
+    const urlsSnapshot = [...imageUrls]
 
     const dynamicSpecMap = specsSnapshot.reduce<Record<string, string>>((acc, item) => {
       const k = String(item.key || '').trim()
@@ -151,12 +158,10 @@ const ProductsPage = () => {
       return acc
     }, {})
 
-    const urlListFromInput = data.images
-      ? data.images
-          .split(',')
-          .map((url) => url.trim())
-          .filter(Boolean)
-      : []
+    // Collect URLs from the dynamic inputs
+    const existingUrls = urlsSnapshot
+      .map((item) => item.url.trim())
+      .filter(Boolean)
 
     const folder =
       productBeingEdited?._id
@@ -177,17 +182,14 @@ const ProductsPage = () => {
       }
     }
 
-    let uploadedLinkUrls: string[] = []
-    if (urlListFromInput.length) {
-      try {
-        uploadedLinkUrls = await uploadUrlsToCloud(urlListFromInput, folder)
-      } catch (error) {
-        console.error('Error uploading image URLs:', error)
-        uploadedLinkUrls = urlListFromInput
-      }
-    }
-
-    const mergedImages = Array.from(new Set([...uploadedLinkUrls, ...uploadedFileUrls]))
+    // We don't need to re-upload existing URLs usually, unless we want to ensure they are on our cloud
+    // But for now let's assume valid URLs are kept as is, or we can use uploadUrlsToCloud if needed.
+    // Let's just keep them as is to simplify deleting/reordering.
+    
+    // If you want to ensure they are on cloud, you can use uploadUrlsToCloud(existingUrls, folder)
+    // For now, let's mix them.
+    
+    const mergedImages = [...existingUrls, ...uploadedFileUrls]
     
     const payload = {
       name: data.name,
@@ -519,13 +521,44 @@ const ProductsPage = () => {
                 min: { value: 0, message: 'Tồn kho không được âm' },
               })}
             />
-            <TextField
-              margin="normal"
-              fullWidth
-              label="Ảnh (URL, cách nhau bởi dấu phẩy)"
-              sx={{ gridColumn: { sm: 'span 2' } }}
-              {...register('images')}
-            />
+            <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
+              Ảnh sản phẩm (URLs)
+            </Typography>
+            {imageUrls.map((item) => (
+              <Box key={item.id} sx={{ gridColumn: { sm: 'span 2' }, display: 'flex', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="URL Ảnh"
+                  value={item.url}
+                  onChange={(e) =>
+                    setImageUrls((prev) =>
+                      prev.map((img) => (img.id === item.id ? { ...img, url: e.target.value } : img))
+                    )
+                  }
+                />
+                 <IconButton
+                    aria-label="Xóa ảnh"
+                    color="error"
+                    onClick={() => setImageUrls((prev) => prev.filter((img) => img.id !== item.id))}
+                  >
+                    <DeleteIcon />
+                 </IconButton>
+              </Box>
+            ))}
+            <Button
+              variant="outlined"
+              sx={{ gridColumn: { sm: 'span 2' }, mb: 2 }}
+              onClick={() =>
+                setImageUrls((prev) => [
+                  ...prev,
+                  { id: `img-new-${Date.now()}-${prev.length}`, url: '' },
+                ])
+              }
+            >
+              Thêm URL Ảnh
+            </Button>
+
             <Box sx={{ gridColumn: { sm: 'span 2' } }}>
               <Button variant="outlined" component="label">
                 Chọn ảnh từ máy
