@@ -188,8 +188,7 @@ const ProductsPage = () => {
     }
 
     const mergedImages = Array.from(new Set([...uploadedLinkUrls, ...uploadedFileUrls]))
-    const latestOnly = mergedImages.length ? [mergedImages[mergedImages.length - 1]] : []
-
+    
     const payload = {
       name: data.name,
       code: data.code || undefined,
@@ -201,7 +200,7 @@ const ProductsPage = () => {
       stock: Number(data.stock),
       description: data.description,
       datasheet: data.datasheet,
-      images: latestOnly,
+      images: mergedImages,
       specs: Object.fromEntries(
         Object.entries({ ...dynamicSpecMap }).filter(
           ([, v]) => v !== undefined && v !== null && String(v).trim() !== ''
