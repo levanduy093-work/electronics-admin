@@ -36,6 +36,8 @@ interface Product {
   description?: string
   images: string[]
   datasheet?: string
+  options?: string[]
+  classifications?: string[]
   specs?: {
     resistance?: string
     tolerance?: string
@@ -67,6 +69,8 @@ const ProductsPage = () => {
   const [backgroundSaving, setBackgroundSaving] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [dynamicSpecs, setDynamicSpecs] = useState<{ id: string; key: string; value: string }[]>([])
+  const [options, setOptions] = useState<{ id: string; value: string }[]>([])
+  const [classifications, setClassifications] = useState<{ id: string; value: string }[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imageUrls, setImageUrls] = useState<{ id: string; url: string }[]>([])
   const [toast, setToast] = useState<{
@@ -126,9 +130,29 @@ const ProductsPage = () => {
           value: v !== null && v !== undefined ? String(v) : '',
         })),
       )
+      
+      // Load options
+      const productOptions = product.options || []
+      setOptions(
+        productOptions.map((opt, idx) => ({
+          id: `opt-${product._id}-${idx}`,
+          value: String(opt),
+        })),
+      )
+      
+      // Load classifications
+      const productClassifications = product.classifications || []
+      setClassifications(
+        productClassifications.map((cls, idx) => ({
+          id: `cls-${product._id}-${idx}`,
+          value: String(cls),
+        })),
+      )
     } else {
       reset()
       setDynamicSpecs([])
+      setOptions([])
+      setClassifications([])
       setImageUrls([])
     }
     setOpen(true)
@@ -141,11 +165,15 @@ const ProductsPage = () => {
     reset()
     setImageFiles([])
     setImageUrls([])
+    setOptions([])
+    setClassifications([])
   }
 
   const onSubmit = async (data: ProductFormValues) => {
     const productBeingEdited = editingProduct
     const specsSnapshot = [...dynamicSpecs]
+    const optionsSnapshot = [...options]
+    const classificationsSnapshot = [...classifications]
     const filesSnapshot = [...imageFiles]
     const urlsSnapshot = [...imageUrls]
 
@@ -157,6 +185,14 @@ const ProductsPage = () => {
       }
       return acc
     }, {})
+    
+    const optionsArray = optionsSnapshot
+      .map((item) => String(item.value || '').trim())
+      .filter(Boolean)
+    
+    const classificationsArray = classificationsSnapshot
+      .map((item) => String(item.value || '').trim())
+      .filter(Boolean)
 
     // Collect URLs from the dynamic inputs
     const existingUrls = urlsSnapshot
@@ -203,6 +239,8 @@ const ProductsPage = () => {
       description: data.description,
       datasheet: data.datasheet,
       images: mergedImages,
+      options: optionsArray.length > 0 ? optionsArray : undefined,
+      classifications: classificationsArray.length > 0 ? classificationsArray : undefined,
       specs: Object.fromEntries(
         Object.entries({ ...dynamicSpecMap }).filter(
           ([, v]) => v !== undefined && v !== null && String(v).trim() !== ''
@@ -631,6 +669,83 @@ const ProductsPage = () => {
             >
               Thêm thông số
             </Button>
+            
+            <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
+              Tuỳ chọn
+            </Typography>
+            {options.map((item) => (
+              <Box key={item.id} sx={{ gridColumn: { sm: 'span 2' }, display: 'flex', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Tuỳ chọn"
+                  value={item.value}
+                  onChange={(e) =>
+                    setOptions((prev) =>
+                      prev.map((opt) => (opt.id === item.id ? { ...opt, value: e.target.value } : opt))
+                    )
+                  }
+                />
+                <IconButton
+                  aria-label="Xóa tuỳ chọn"
+                  color="error"
+                  onClick={() => setOptions((prev) => prev.filter((opt) => opt.id !== item.id))}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            ))}
+            <Button
+              variant="outlined"
+              sx={{ gridColumn: { sm: 'span 2' } }}
+              onClick={() =>
+                setOptions((prev) => [
+                  ...prev,
+                  { id: `opt-${Date.now()}-${prev.length}`, value: '' },
+                ])
+              }
+            >
+              Thêm tuỳ chọn
+            </Button>
+            
+            <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
+              Phân loại
+            </Typography>
+            {classifications.map((item) => (
+              <Box key={item.id} sx={{ gridColumn: { sm: 'span 2' }, display: 'flex', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Phân loại"
+                  value={item.value}
+                  onChange={(e) =>
+                    setClassifications((prev) =>
+                      prev.map((cls) => (cls.id === item.id ? { ...cls, value: e.target.value } : cls))
+                    )
+                  }
+                />
+                <IconButton
+                  aria-label="Xóa phân loại"
+                  color="error"
+                  onClick={() => setClassifications((prev) => prev.filter((cls) => cls.id !== item.id))}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            ))}
+            <Button
+              variant="outlined"
+              sx={{ gridColumn: { sm: 'span 2' } }}
+              onClick={() =>
+                setClassifications((prev) => [
+                  ...prev,
+                  { id: `cls-${Date.now()}-${prev.length}`, value: '' },
+                ])
+              }
+            >
+              Thêm phân loại
+            </Button>
+            
             <TextField
               margin="normal"
               fullWidth
