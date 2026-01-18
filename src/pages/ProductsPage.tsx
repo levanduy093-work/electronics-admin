@@ -218,14 +218,19 @@ const ProductsPage = () => {
       }
     }
 
-    // We don't need to re-upload existing URLs usually, unless we want to ensure they are on our cloud
-    // But for now let's assume valid URLs are kept as is, or we can use uploadUrlsToCloud if needed.
-    // Let's just keep them as is to simplify deleting/reordering.
+    // Upload existing URLs to Cloudinary to ensure they are stored on our cloud
+    let uploadedExistingUrls: string[] = []
+    if (existingUrls.length) {
+      try {
+        uploadedExistingUrls = await uploadUrlsToCloud(existingUrls, folder)
+      } catch (error) {
+        console.error('Error uploading URLs to cloud:', error)
+        // Fallback to original URLs if upload fails
+        uploadedExistingUrls = existingUrls
+      }
+    }
     
-    // If you want to ensure they are on cloud, you can use uploadUrlsToCloud(existingUrls, folder)
-    // For now, let's mix them.
-    
-    const mergedImages = [...existingUrls, ...uploadedFileUrls]
+    const mergedImages = [...uploadedExistingUrls, ...uploadedFileUrls]
     
     const payload = {
       name: data.name,
