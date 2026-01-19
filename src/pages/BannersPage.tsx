@@ -30,6 +30,7 @@ import { Controller, useForm } from 'react-hook-form'
 import client from '../api/client'
 import { slugify } from '../utils/slugify'
 import { uploadImageByUrl, uploadImageFile } from '../utils/uploads'
+import { useDbChange } from '../hooks/useDbChange'
 
 interface Banner {
   _id: string
@@ -89,6 +90,10 @@ const BannersPage = () => {
   useEffect(() => {
     fetchBanners()
   }, [])
+
+  useDbChange(['banners'], () => {
+    fetchBanners()
+  })
 
   useEffect(() => {
     if (editingBanner?.productId) {

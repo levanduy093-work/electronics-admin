@@ -23,6 +23,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Visibility as VisibilityIcon, Cancel as CancelIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import client from '../api/client'
+import { useDbChange } from '../hooks/useDbChange'
 
 interface OrderStatus {
   ordered?: string
@@ -109,6 +110,11 @@ const OrdersPage = () => {
     fetchOrders()
     fetchShipments()
   }, [])
+
+  useDbChange(['orders', 'shipments'], () => {
+    fetchOrders()
+    fetchShipments()
+  })
 
   const handleOpen = (order: Order) => {
     setSelectedOrder(order)
