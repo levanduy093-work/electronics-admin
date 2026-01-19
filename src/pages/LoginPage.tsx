@@ -18,7 +18,7 @@ interface LoginResponse {
 }
 
 const LoginPage = () => {
-  const { register, handleSubmit } = useForm()
+  const { register, handleSubmit } = useForm<{ email: string; password: string }>()
   const navigate = useNavigate()
   const { login } = useAuth()
   const [error, setError] = useState('')
@@ -29,7 +29,7 @@ const LoginPage = () => {
       setError('')
       setLoading(true)
       const response = await client.post<LoginResponse>('/auth/login', data)
-      const { accessToken, user } = response.data
+      const { accessToken, refreshToken, user } = response.data
       if (!accessToken) {
         setError('Hệ thống không trả về token. Vui lòng thử lại.')
         return
@@ -43,7 +43,7 @@ const LoginPage = () => {
         email: user?.email,
         name: user?.name,
         role: user?.role,
-      })
+      }, refreshToken ?? null)
       navigate('/')
     } catch (err: any) {
       const message = err.response?.data?.message || 'Đăng nhập thất bại. Kiểm tra lại thông tin.'
@@ -76,17 +76,17 @@ const LoginPage = () => {
                 label="Email"
                 autoComplete="email"
                 autoFocus
-                {...register('email')}
+                {...register('email', { required: true })}
               />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              label="Mật khẩu"
-              type="password"
-              id="password"
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                label="Mật khẩu"
+                type="password"
+                id="password"
                 autoComplete="current-password"
-                {...register('password')}
+                {...register('password', { required: true })}
               />
               <Button
                 type="submit"

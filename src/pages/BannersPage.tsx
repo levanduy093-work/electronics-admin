@@ -28,6 +28,8 @@ import {
 } from '@mui/icons-material'
 import { Controller, useForm } from 'react-hook-form'
 import client from '../api/client'
+import { slugify } from '../utils/slugify'
+import { uploadImageByUrl, uploadImageFile } from '../utils/uploads'
 
 interface Banner {
   _id: string
@@ -175,37 +177,6 @@ const BannersPage = () => {
       isActive: true,
       order: sortedBanners.length,
     })
-  }
-
-  const slugify = (value: string) =>
-    value
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48)
-
-  const uploadImageFile = async (file: File, folder: string) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    const res = await client.post('/upload/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      params: { folder },
-    })
-    return res.data?.secure_url || res.data?.url
-  }
-
-  const uploadImageByUrl = async (url: string, folder: string) => {
-    if (/res\.cloudinary\.com/i.test(url)) return url
-    const res = await client.post(
-      '/upload/image/by-url',
-      { url },
-      {
-        params: { folder },
-      },
-    )
-    return res.data?.secure_url || res.data?.url || url
   }
 
   const onSubmit = async (data: BannerFormValues) => {

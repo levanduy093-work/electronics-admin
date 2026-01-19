@@ -37,7 +37,7 @@ const theme = createTheme({
 })
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
 
   if (isLoading) {
     return (
@@ -47,7 +47,8 @@ const ProtectedRoute = () => {
     )
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />
+  const isAdmin = user?.role ? user.role === 'admin' : true
+  return isAuthenticated && isAdmin ? <Outlet /> : <Navigate to="/login" replace />
 }
 
 function App() {
