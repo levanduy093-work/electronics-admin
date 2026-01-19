@@ -24,3 +24,16 @@ dist-ssr
 *.sw?
 admin_account
 .env
+
+# Env variants
+.env.*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Coverage output
+coverage/
+
+# Build caches
+.turbo/
+.eslintcache
