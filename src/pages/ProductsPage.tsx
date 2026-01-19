@@ -22,6 +22,8 @@ import type { GridColDef } from '@mui/x-data-grid'
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
 import client from '../api/client'
+import { slugify } from '../utils/slugify'
+import { uploadImageFiles, uploadImageUrls } from '../utils/uploads'
 
 interface Product {
   _id: string
@@ -61,6 +63,7 @@ interface ProductFormValues {
 }
 
 const ProductsPage = () => {
+  const MAX_IMAGE_MB = 5
   const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
@@ -87,6 +90,7 @@ const ProductsPage = () => {
     handleSubmit,
     reset,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<ProductFormValues>()
 
@@ -212,7 +216,7 @@ const ProductsPage = () => {
     let uploadedFileUrls: string[] = []
     if (filesSnapshot.length) {
       try {
-        uploadedFileUrls = await uploadImagesToCloud(filesSnapshot, folder)
+        uploadedFileUrls = await uploadImageFiles(filesSnapshot, folder)
       } catch (error) {
         console.error('Error uploading images:', error)
       }
@@ -222,7 +226,7 @@ const ProductsPage = () => {
     let uploadedExistingUrls: string[] = []
     if (existingUrls.length) {
       try {
-        uploadedExistingUrls = await uploadUrlsToCloud(existingUrls, folder)
+        uploadedExistingUrls = await uploadImageUrls(existingUrls, folder)
       } catch (error) {
         console.error('Error uploading URLs to cloud:', error)
         // Fallback to original URLs if upload fails
@@ -371,53 +375,6 @@ const ProductsPage = () => {
       })
     : products
 
-  const slugify = (value: string) =>
-    value
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48)
-
-  const uploadImagesToCloud = async (files: File[], folder: string) => {
-    const uploads = files.map(async (file) => {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await client.post('/upload/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        params: { folder },
-      })
-      return res.data?.secure_url || res.data?.url
-    })
-    const results = await Promise.all(uploads)
-    return results.filter((url): url is string => Boolean(url))
-  }
-
-  const uploadUrlsToCloud = async (urls: string[], folder: string) => {
-    const uploads = urls.map(async (rawUrl) => {
-      const url = rawUrl.trim()
-      if (!url) return null
-      if (/res\.cloudinary\.com/i.test(url)) return url
-      try {
-        const res = await client.post(
-          '/upload/image/by-url',
-          { url },
-          {
-            params: { folder },
-          },
-        )
-        return res.data?.secure_url || res.data?.url || url
-      } catch (error) {
-        console.error('Error uploading image by URL:', error)
-        return url
-      }
-    })
-
-    const results = await Promise.all(uploads)
-    return results.filter((url): url is string => Boolean(url))
-  }
-
   const onError = (errors: any) => {
     console.error('Form validation errors:', errors)
     setToast({
@@ -548,6 +505,14 @@ const ProductsPage = () => {
                 valueAsNumber: true,
                 required: 'Giá bán là bắt buộc',
                 min: { value: 0, message: 'Giá không được âm' },
+                validate: (value) => {
+                  const original = Number(getValues('originalPrice') ?? 0)
+                  const sale = Number(value ?? 0)
+                  if (Number.isFinite(original) && Number.isFinite(sale) && sale > original) {
+                    return 'Giá bán phải nhỏ hơn hoặc bằng giá gốc'
+                  }
+                  return true
+                },
               })}
             />
             <TextField
@@ -610,7 +575,19 @@ const ProductsPage = () => {
                   multiple
                   accept="image/*"
                   type="file"
-                  onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || [])
+                    const tooLarge = files.filter((f) => f.size > MAX_IMAGE_MB * 1024 * 1024)
+                    const okFiles = files.filter((f) => f.size <= MAX_IMAGE_MB * 1024 * 1024)
+                    if (tooLarge.length > 0) {
+                      setToast({
+                        open: true,
+                        message: `Một số ảnh vượt quá ${MAX_IMAGE_MB}MB: ${tooLarge.map((f) => f.name).join(', ')}`,
+                        severity: 'error',
+                      })
+                    }
+                    setImageFiles(okFiles)
+                  }}
                 />
               </Button>
               <FormHelperText>
