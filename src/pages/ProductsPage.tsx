@@ -24,6 +24,7 @@ import { useForm } from 'react-hook-form'
 import client from '../api/client'
 import { slugify } from '../utils/slugify'
 import { uploadImageFiles, uploadImageUrls } from '../utils/uploads'
+import { useDbChange } from '../hooks/useDbChange'
 
 interface Product {
   _id: string
@@ -109,6 +110,10 @@ const ProductsPage = () => {
   useEffect(() => {
     fetchProducts()
   }, [])
+
+  useDbChange(['products'], () => {
+    fetchProducts()
+  })
 
   const handleOpen = (product: Product | null = null) => {
     setEditingProduct(product)

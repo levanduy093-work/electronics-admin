@@ -17,6 +17,7 @@ import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
 import client from '../api/client'
+import { useDbChange } from '../hooks/useDbChange'
 
 interface Transaction {
   _id: string
@@ -54,6 +55,10 @@ const TransactionsPage = () => {
   useEffect(() => {
     fetchTransactions()
   }, [])
+
+  useDbChange(['transactions'], () => {
+    fetchTransactions()
+  })
 
   const handleOpen = (transaction: Transaction | null = null) => {
     setEditing(transaction)

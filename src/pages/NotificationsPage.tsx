@@ -23,6 +23,7 @@ import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
 import client from '../api/client'
+import { useDbChange } from '../hooks/useDbChange'
 
 interface NotificationTarget {
   scope: 'all_users' | 'user'
@@ -97,6 +98,10 @@ const NotificationsPage = () => {
   useEffect(() => {
     fetchData()
   }, [])
+
+  useDbChange(['notifications'], () => {
+    fetchData()
+  })
 
   const handleClose = () => {
     setOpen(false)
