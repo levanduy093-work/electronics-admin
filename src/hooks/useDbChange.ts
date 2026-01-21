@@ -5,7 +5,7 @@ type DbChangePayload = {
   collection?: string
   operationType?: string
   documentId?: string
-  fullDocument?: any
+  fullDocument?: unknown
 }
 
 /**

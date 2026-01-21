@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedUser) {
         try {
           parsedUser = JSON.parse(storedUser)
-        } catch (_err) {
+        } catch {
           localStorage.removeItem('user')
         }
       }
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(storedToken)
         setRefreshToken(storedRefreshToken)
         setUser(parsedUser)
-      } catch (_err) {
+      } catch {
         localStorage.removeItem('token')
         localStorage.removeItem('refreshToken')
         localStorage.removeItem('user')
@@ -128,6 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const ctx = useContext(AuthContext)
   if (!ctx) {

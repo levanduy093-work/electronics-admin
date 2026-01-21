@@ -106,7 +106,7 @@ const BannersPage = () => {
     const fetchProducts = async () => {
       try {
         const response = await client.get('/products')
-        const items: ProductOption[] = (response.data || []).map((p: any) => ({ _id: p._id, name: p.name }))
+        const items: ProductOption[] = (response.data || []).map((p: { _id: string; name: string }) => ({ _id: p._id, name: p.name }))
         setProducts(items)
       } catch (error) {
         console.error('Error fetching products:', error)
@@ -473,40 +473,40 @@ const BannersPage = () => {
             sx={{
               mt: 1,
               display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-            gap: 2,
-          }}
-        >
-          <TextField margin="normal" fullWidth label="Tiêu đề" required {...register('title')} />
-          <TextField margin="normal" fullWidth label="Mô tả ngắn" {...register('subtitle')} />
-          <TextField margin="normal" fullWidth label="Nhãn" {...register('ctaLabel')} />
-          <Controller
-            name="productId"
-            control={control}
-            render={({ field }) => {
-              const selected = products.find((p) => p._id === field.value) || null
-              return (
-                <Autocomplete
-                  options={products}
-                  getOptionLabel={(option) => option.name}
-                  value={selected}
-                  onChange={(_e, option) => {
-                    field.onChange(option?._id || '')
-                    setProductSearch(option?.name || '')
-                  }}
-                  inputValue={productSearch}
-                  onInputChange={(_e, value) => setProductSearch(value)}
-                  renderInput={(params) => <TextField {...params} label="Chọn sản phẩm" margin="normal" fullWidth />}
-                  noOptionsText={productSearch ? 'Không tìm thấy' : 'Nhập tên sản phẩm'}
-                />
-              )
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gap: 2,
             }}
-          />
-          <TextField
-            margin="normal"
-            fullWidth
-            label="Thứ tự (0, 1, 2...)"
-            type="number"
+          >
+            <TextField margin="normal" fullWidth label="Tiêu đề" required {...register('title')} />
+            <TextField margin="normal" fullWidth label="Mô tả ngắn" {...register('subtitle')} />
+            <TextField margin="normal" fullWidth label="Nhãn" {...register('ctaLabel')} />
+            <Controller
+              name="productId"
+              control={control}
+              render={({ field }) => {
+                const selected = products.find((p) => p._id === field.value) || null
+                return (
+                  <Autocomplete
+                    options={products}
+                    getOptionLabel={(option) => option.name}
+                    value={selected}
+                    onChange={(_e, option) => {
+                      field.onChange(option?._id || '')
+                      setProductSearch(option?.name || '')
+                    }}
+                    inputValue={productSearch}
+                    onInputChange={(_e, value) => setProductSearch(value)}
+                    renderInput={(params) => <TextField {...params} label="Chọn sản phẩm" margin="normal" fullWidth />}
+                    noOptionsText={productSearch ? 'Không tìm thấy' : 'Nhập tên sản phẩm'}
+                  />
+                )
+              }}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              label="Thứ tự (0, 1, 2...)"
+              type="number"
               {...register('order', { valueAsNumber: true })}
             />
             <TextField

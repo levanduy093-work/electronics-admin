@@ -31,6 +31,16 @@ interface Voucher {
   type?: 'fixed' | 'shipping' | 'percentage'
 }
 
+interface VoucherFormValues {
+  code: string
+  description: string
+  discountPrice: number
+  discountRate: number
+  maxDiscountPrice: number
+  minTotal: number
+  expire: string
+}
+
 const VouchersPage = () => {
   const [vouchers, setVouchers] = useState<Voucher[]>([])
   const [search, setSearch] = useState('')
@@ -38,7 +48,7 @@ const VouchersPage = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null)
-  const { register, handleSubmit, reset, setValue } = useForm()
+  const { register, handleSubmit, reset, setValue } = useForm<VoucherFormValues>()
   const [type, setType] = useState<'fixed' | 'shipping' | 'percentage'>('fixed')
 
   const fetchVouchers = async () => {
@@ -67,13 +77,17 @@ const VouchersPage = () => {
     setEditingVoucher(voucher)
     if (voucher) {
       setValue('code', voucher.code)
-      setValue('description', voucher.description)
+      setValue('description', voucher.description || '')
       setValue('discountPrice', voucher.discountPrice)
-      setValue('discountRate', voucher.discountRate)
-      setValue('maxDiscountPrice', voucher.maxDiscountPrice)
+      setValue('discountRate', voucher.discountRate || 0)
+      setValue('maxDiscountPrice', voucher.maxDiscountPrice || 0)
       setValue('minTotal', voucher.minTotal)
       setValue('expire', voucher.expire ? new Date(voucher.expire).toISOString().slice(0, 16) : '')
-      setType((voucher.type as any) || 'fixed')
+      if (voucher.type) {
+        setType(voucher.type)
+      } else {
+        setType('fixed')
+      }
     } else {
       reset()
       setType('fixed')
@@ -87,8 +101,8 @@ const VouchersPage = () => {
     reset()
   }
 
-  const onSubmit = async (data: any) => {
-    const payload: any = {
+  const onSubmit = async (data: VoucherFormValues) => {
+    const payload: Record<string, unknown> = {
       code: data.code,
       description: data.description,
       minTotal: Number(data.minTotal),
@@ -211,17 +225,17 @@ const VouchersPage = () => {
   const normalizedSearch = normalizeText(search)
   const filteredVouchers = normalizedSearch
     ? vouchers.filter((v) => {
-        const haystacks = [
-          v.code,
-          v.description,
-          v.type,
-          v.discountPrice?.toString(),
-          v.discountRate?.toString(),
-          v.maxDiscountPrice?.toString(),
-          v.minTotal?.toString(),
-        ]
-        return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
-      })
+      const haystacks = [
+        v.code,
+        v.description,
+        v.type,
+        v.discountPrice?.toString(),
+        v.discountRate?.toString(),
+        v.maxDiscountPrice?.toString(),
+        v.minTotal?.toString(),
+      ]
+      return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
+    })
     : vouchers
 
   return (
@@ -280,7 +294,7 @@ const VouchersPage = () => {
               label="Loại giảm giá"
               SelectProps={{ native: true }}
               value={type}
-              onChange={(e) => setType(e.target.value as any)}
+              onChange={(e) => setType(e.target.value as 'fixed' | 'shipping' | 'percentage')}
             >
               <option value="fixed">Giảm số tiền cố định</option>
               <option value="percentage">Giảm theo % (có thể đặt mức tối đa)</option>

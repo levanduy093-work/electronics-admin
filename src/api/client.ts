@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -12,7 +12,7 @@ const client = axios.create({
 type RefreshResponse = {
   accessToken: string
   refreshToken?: string
-  user?: any
+  user?: unknown
 }
 
 client.interceptors.request.use((config) => {
@@ -40,7 +40,7 @@ client.interceptors.response.use(
 
     // Try refresh once on 401
     if (status === 401) {
-      const originalRequest = (error.config || {}) as any
+      const originalRequest = (error.config || {}) as InternalAxiosRequestConfig & { _retry?: boolean }
       if (originalRequest._retry) {
         localStorage.removeItem('token')
         localStorage.removeItem('refreshToken')

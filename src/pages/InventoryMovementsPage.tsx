@@ -32,6 +32,8 @@ interface Movement {
   note?: string
   createdAt?: string | Date
   updatedAt?: string | Date
+  created_at?: string | Date
+  updated_at?: string | Date
 }
 
 interface ProductOption {
@@ -66,9 +68,11 @@ const InventoryMovementsPage = () => {
     try {
       const res = await client.get('/inventory-movements')
       const normalized = (res.data || []).map(
-        (m: Movement & { created_at?: string | Date; updated_at?: string | Date; _id?: any }) => {
-          const normalizeId = (value: any) =>
-            typeof value === 'string' ? value : value?.toString?.() ?? value
+        (m: Movement & { created_at?: string | Date; updated_at?: string | Date; _id?: unknown }) => {
+          const normalizeId = (value: unknown) =>
+            typeof value === 'string'
+              ? value
+              : (value as { toString?: () => string })?.toString?.() ?? String(value)
           const normalizeDate = (value?: string | Date) =>
             value ? new Date(value).toISOString() : undefined
           const createdRaw = m.createdAt ?? m.created_at
@@ -76,8 +80,8 @@ const InventoryMovementsPage = () => {
 
           return {
             ...m,
-            _id: normalizeId((m as any)._id),
-            productId: normalizeId((m as any).productId),
+            _id: normalizeId(m._id),
+            productId: normalizeId(m.productId),
             createdAt: normalizeDate(createdRaw) ?? normalizeDate(updatedRaw),
             updatedAt: normalizeDate(updatedRaw),
           }
@@ -126,7 +130,12 @@ const InventoryMovementsPage = () => {
     reset({ productId: '', type: 'inbound', quantity: undefined, note: '' })
   }
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: {
+    productId: string
+    type: string
+    quantity: number
+    note: string
+  }) => {
     const payload = {
       productId: data.productId,
       type: data.type,
@@ -149,7 +158,7 @@ const InventoryMovementsPage = () => {
     }
   }
 
-  const getCreatedValue = (row: Movement | any) =>
+  const getCreatedValue = (row: Movement) =>
     row?.createdAt ?? row?.created_at ?? row?.updatedAt ?? row?.updated_at ?? ''
 
   const handleDelete = async (id: string) => {
@@ -204,7 +213,7 @@ const InventoryMovementsPage = () => {
       valueGetter: (_value, row) => getCreatedValue(row),
       renderCell: (params) => {
         const raw = getCreatedValue(params.row)
-        const dateValue = raw ? new Date(raw as any) : null
+        const dateValue = raw ? new Date(raw) : null
         const display = dateValue && !Number.isNaN(dateValue.getTime()) ? dateValue.toLocaleString('vi-VN') : ''
         return (
           <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>

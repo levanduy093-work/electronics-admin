@@ -32,13 +32,23 @@ interface Transaction {
   updatedAt?: string
 }
 
+interface TransactionFormValues {
+  orderId: string
+  userId: string
+  provider: string
+  amount: number
+  currency: string
+  status: string
+  paidAt: string
+}
+
 const TransactionsPage = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
-  const { register, handleSubmit, reset, setValue } = useForm()
+  const { register, handleSubmit, reset, setValue } = useForm<TransactionFormValues>()
 
   const fetchTransactions = async () => {
     setLoading(true)
@@ -82,7 +92,7 @@ const TransactionsPage = () => {
     reset({ currency: 'VND' })
   }
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: TransactionFormValues) => {
     const payload = {
       orderId: data.orderId,
       userId: data.userId,
@@ -127,10 +137,7 @@ const TransactionsPage = () => {
       field: 'amount',
       headerName: 'Số tiền',
       width: 150,
-      valueFormatter: (params) => {
-        const val = (params as any)?.value
-        return Number(val ?? 0).toLocaleString('vi-VN')
-      },
+      valueFormatter: (value?: number) => Number(value ?? 0).toLocaleString('vi-VN'),
     },
     { field: 'currency', headerName: 'Tiền tệ', width: 110 },
     {
@@ -138,7 +145,7 @@ const TransactionsPage = () => {
       headerName: 'Trạng thái',
       width: 150,
       renderCell: (params: GridRenderCellParams<Transaction>) => (
-        <Chip label={params.value} color="primary" size="small" />
+        <Chip label={params.value as string} color="primary" size="small" />
       ),
     },
     {

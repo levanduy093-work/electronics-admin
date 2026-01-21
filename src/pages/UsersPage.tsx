@@ -37,6 +37,16 @@ interface UserFormValues {
   avatar?: string
 }
 
+interface VoucherFormValues {
+  code: string
+  description: string
+  minTotal: number
+  expire: string
+  discountRate?: number
+  maxDiscountPrice?: number
+  discountPrice?: number
+}
+
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([])
   const [open, setOpen] = useState(false)
@@ -49,7 +59,7 @@ const UsersPage = () => {
   const [openVoucherDialog, setOpenVoucherDialog] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [voucherType, setVoucherType] = useState<'fixed' | 'shipping' | 'percentage'>('fixed')
-  const { register: registerVoucher, handleSubmit: handleSubmitVoucher, reset: resetVoucher } = useForm()
+  const { register: registerVoucher, handleSubmit: handleSubmitVoucher, reset: resetVoucher } = useForm<VoucherFormValues>()
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -137,10 +147,10 @@ const UsersPage = () => {
     resetVoucher()
   }
 
-  const onSubmitVoucher = async (data: any) => {
+  const onSubmitVoucher = async (data: VoucherFormValues) => {
     if (!selectedUserId) return
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       code: data.code,
       description: data.description,
       minTotal: Number(data.minTotal),
@@ -304,7 +314,7 @@ const UsersPage = () => {
               label="Loại giảm giá"
               SelectProps={{ native: true }}
               value={voucherType}
-              onChange={(e) => setVoucherType(e.target.value as any)}
+              onChange={(e) => setVoucherType(e.target.value as 'fixed' | 'shipping' | 'percentage')}
             >
               <option value="fixed">Giảm số tiền cố định</option>
               <option value="percentage">Giảm theo % (có thể đặt mức tối đa)</option>

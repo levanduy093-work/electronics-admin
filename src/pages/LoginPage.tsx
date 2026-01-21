@@ -17,14 +17,27 @@ interface LoginResponse {
   }
 }
 
+interface LoginFormValues {
+  email: string
+  password: string
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string | string[]
+    }
+  }
+}
+
 const LoginPage = () => {
-  const { register, handleSubmit } = useForm<{ email: string; password: string }>()
+  const { register, handleSubmit } = useForm<LoginFormValues>()
   const navigate = useNavigate()
   const { login } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: LoginFormValues) => {
     try {
       setError('')
       setLoading(true)
@@ -45,8 +58,9 @@ const LoginPage = () => {
         role: user?.role,
       }, refreshToken ?? null)
       navigate('/')
-    } catch (err: any) {
-      const message = err.response?.data?.message || 'Đăng nhập thất bại. Kiểm tra lại thông tin.'
+    } catch (err: unknown) {
+      const errorObj = err as ApiError
+      const message = errorObj?.response?.data?.message || 'Đăng nhập thất bại. Kiểm tra lại thông tin.'
       setError(Array.isArray(message) ? message.join(', ') : message)
     } finally {
       setLoading(false)
