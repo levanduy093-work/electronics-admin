@@ -103,7 +103,7 @@ const DashboardPage = () => {
       headerName: 'Tổng tiền',
       flex: 1,
       minWidth: 140,
-      valueFormatter: (params) => Number((params as any).value || 0).toLocaleString('vi-VN'),
+      valueFormatter: (value?: number) => Number(value || 0).toLocaleString('vi-VN'),
     },
     { field: 'paymentStatus', headerName: 'Thanh toán', flex: 1, minWidth: 140 },
     {
@@ -120,8 +120,8 @@ const DashboardPage = () => {
       headerName: 'Ngày tạo',
       flex: 1.2,
       minWidth: 170,
-      valueFormatter: (params) =>
-        (params as any).value ? new Date((params as any).value as string).toLocaleString('vi-VN') : '',
+      valueFormatter: (value?: string) =>
+        value ? new Date(value).toLocaleString('vi-VN') : '',
     },
   ]
 

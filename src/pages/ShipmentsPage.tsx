@@ -34,6 +34,16 @@ interface Shipment {
   paymentStatus?: string
 }
 
+interface ShipmentFormValues {
+  orderId: string
+  carrier: string
+  trackingNumber: string
+  status: string
+  paymentMethod: string
+  paymentStatus: string
+  expectedDelivery: string
+}
+
 const ShipmentsPage = () => {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [open, setOpen] = useState(false)
@@ -41,7 +51,7 @@ const ShipmentsPage = () => {
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Shipment | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const { register, handleSubmit, reset, setValue } = useForm()
+  const { register, handleSubmit, reset, setValue } = useForm<ShipmentFormValues>()
 
   const fetchShipments = async () => {
     setLoading(true)
@@ -78,7 +88,7 @@ const ShipmentsPage = () => {
 
   const getStatusChip = (status?: string) => {
     if (!status) return <Chip label="Chưa rõ" size="small" variant="outlined" />
-    const map: any = {
+    const map: Record<string, { label: string; color: 'info' | 'primary' | 'success' | 'default' }> = {
       in_transit: { label: 'Đang vận chuyển', color: 'info' },
       out_for_delivery: { label: 'Đang giao hàng', color: 'primary' },
       delivered: { label: 'Đã nhận hàng', color: 'success' },
@@ -122,7 +132,7 @@ const ShipmentsPage = () => {
     reset()
   }
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: ShipmentFormValues) => {
     const payload = {
       orderId: data.orderId,
       carrier: data.carrier,
@@ -217,7 +227,7 @@ const ShipmentsPage = () => {
           )
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
-            <Typography variant="body2">{new Date(value as any).toLocaleString('vi-VN')}</Typography>
+            <Typography variant="body2">{new Date(value).toLocaleString('vi-VN')}</Typography>
           </Box>
         )
       },
@@ -240,7 +250,7 @@ const ShipmentsPage = () => {
           )
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
-            <Typography variant="body2">{new Date(value as any).toLocaleString('vi-VN')}</Typography>
+            <Typography variant="body2">{new Date(value).toLocaleString('vi-VN')}</Typography>
           </Box>
         )
       },
@@ -300,7 +310,7 @@ const ShipmentsPage = () => {
                 onClick={() => quickUpdatePayment(shipment, 'paid')}
                 disabled={disabled}
               >
-                Thu COD
+                {nextStatus ? 'Thu COD' : 'Thu COD'}
               </Button>
             )}
             <IconButton

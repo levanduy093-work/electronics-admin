@@ -352,7 +352,7 @@ const OrdersPage = () => {
       headerAlign: 'center',
       align: 'center',
       minWidth: 140,
-      valueFormatter: (params) => formatCurrency((params as any).value as number),
+      valueFormatter: (value?: number) => formatCurrency(value),
     },
     {
       field: 'payment',
@@ -417,7 +417,7 @@ const OrdersPage = () => {
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
           <Typography variant="body2" noWrap>
-            {formatDateTime((params as any).value as string)}
+            {formatDateTime(params.value)}
           </Typography>
         </Box>
       ),
@@ -449,13 +449,13 @@ const OrdersPage = () => {
           order.status?.shipped && !order.isCancelled
             ? shipment
               ? [
-                  shipment.status === 'in_transit'
-                    ? { label: 'Đang giao', action: () => updateShipmentStatus(order, 'out_for_delivery'), color: 'secondary' as const }
-                    : null,
-                  shipment.status === 'out_for_delivery'
-                    ? { label: 'Đã nhận', action: () => updateShipmentStatus(order, 'delivered'), color: 'secondary' as const }
-                    : null,
-                ].filter(Boolean) as { label: string; action: () => void; color: 'primary' | 'secondary' }[]
+                shipment.status === 'in_transit'
+                  ? { label: 'Đang giao', action: () => updateShipmentStatus(order, 'out_for_delivery'), color: 'secondary' as const }
+                  : null,
+                shipment.status === 'out_for_delivery'
+                  ? { label: 'Đã nhận', action: () => updateShipmentStatus(order, 'delivered'), color: 'secondary' as const }
+                  : null,
+              ].filter(Boolean) as { label: string; action: () => void; color: 'primary' | 'secondary' }[]
               : [{ label: 'Tạo vận đơn', action: () => quickCreateShipment(order), color: 'secondary' as const }]
             : []
 
@@ -664,12 +664,12 @@ const OrdersPage = () => {
 
         <DataGrid
           rows={orders}
-        columns={columns}
-        getRowId={(row) => row._id}
-        autoHeight
-        rowHeight={88}
-        getRowHeight={() => 96}
-        columnHeaderHeight={56}
+          columns={columns}
+          getRowId={(row) => row._id}
+          autoHeight
+          rowHeight={88}
+          getRowHeight={() => 96}
+          columnHeaderHeight={56}
           initialState={{
             pagination: {
               paginationModel: { page: 0, pageSize: 10 },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -43,7 +43,7 @@ interface AdminNotification {
   targets?: NotificationTarget[]
   readCount?: number
   totalDeliveries?: number
-  metadata?: any
+  metadata?: Record<string, unknown>
 }
 
 interface NotificationFormValues {
@@ -55,6 +55,19 @@ interface NotificationFormValues {
   emails: string
   sendAt?: string
   expiresAt?: string
+}
+
+interface NotificationPayload {
+  title: string
+  body: string
+  type: string
+  priority: string
+  sendAt?: string
+  expiresAt?: string
+  target: {
+    scope: string
+    emails?: string[]
+  }
 }
 
 const defaultValues: NotificationFormValues = {
@@ -83,7 +96,7 @@ const NotificationsPage = () => {
 
   const targetScope = watch('targetScope')
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const res = await client.get('/notifications/admin/all')
@@ -93,11 +106,11 @@ const NotificationsPage = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
 
   useDbChange(['notifications'], () => {
     fetchData()
@@ -115,7 +128,7 @@ const NotificationsPage = () => {
     setOpen(true)
   }
 
-  const handleOpenEdit = (item: AdminNotification) => {
+  const handleOpenEdit = useCallback((item: AdminNotification) => {
     setEditing(item)
     reset({
       title: item.title,
@@ -123,15 +136,15 @@ const NotificationsPage = () => {
       type: item.type || 'system',
       priority: item.priority || 'normal',
       targetScope: item.targets?.some((t) => t.scope === 'user') ? 'user' : 'all_users',
-      emails: '', // không lưu email trên server, cho phép nhập mới nếu cần
+      emails: '',
       sendAt: item.send_at ? item.send_at.slice(0, 16) : '',
-      expiresAt: (item as any)?.expires_at ? (item as any).expires_at.slice(0, 16) : '',
+      expiresAt: item.expires_at ? item.expires_at.slice(0, 16) : '',
     })
     setOpen(true)
-  }
+  }, [reset])
 
   const onSubmit = async (data: NotificationFormValues) => {
-    const payload: any = {
+    const payload: NotificationPayload = {
       title: data.title,
       body: data.body,
       type: data.type,
@@ -168,7 +181,7 @@ const NotificationsPage = () => {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!window.confirm('Xóa thông báo này?')) return
     try {
       await client.delete(`/notifications/admin/${id}`)
@@ -176,7 +189,7 @@ const NotificationsPage = () => {
     } catch (error) {
       console.error('Xóa thông báo thất bại:', error)
     }
-  }
+  }, [fetchData])
 
   const columns: GridColDef<AdminNotification>[] = useMemo(() => {
     return [
@@ -187,7 +200,7 @@ const NotificationsPage = () => {
         field: 'send_at',
         headerName: 'Thời gian gửi',
         width: 190,
-        valueGetter: (_value, row: AdminNotification) => row?.send_at || row?.createdAt,
+        valueGetter: (_value, row) => row?.send_at || row?.createdAt,
         valueFormatter: (value) => (value ? new Date(value as string).toLocaleString('vi-VN') : ''),
       },
       {
@@ -200,8 +213,8 @@ const NotificationsPage = () => {
         field: 'scope',
         headerName: 'Phạm vi',
         width: 140,
-        valueGetter: (_value, row: AdminNotification) =>
-          row?.targets?.some((t: NotificationTarget) => t.scope === 'user') ? 'User chỉ định' : 'Tất cả',
+        valueGetter: (_value, row) =>
+          row?.targets?.some((t) => t.scope === 'user') ? 'User chỉ định' : 'Tất cả',
       },
       {
         field: 'delivery',
@@ -243,7 +256,7 @@ const NotificationsPage = () => {
         filterable: false,
       },
     ]
-  }, [])
+  }, [handleDelete, handleOpenEdit])
 
   const normalizeText = (value?: string) =>
     (value || '')
@@ -264,15 +277,15 @@ const NotificationsPage = () => {
   const normalizedSearch = normalizeText(search)
   const filteredItems = normalizedSearch
     ? items.filter((n) => {
-        const haystacks = [
-          n.title,
-          n.body,
-          n.type,
-          n.priority,
-          n.metadata ? JSON.stringify(n.metadata) : '',
-        ]
-        return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
-      })
+      const haystacks = [
+        n.title,
+        n.body,
+        n.type,
+        n.priority,
+        n.metadata ? JSON.stringify(n.metadata) : '',
+      ]
+      return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
+    })
     : items
 
   return (

@@ -18,9 +18,9 @@ import {
   Alert,
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
-import type { GridColDef } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
-import { useForm } from 'react-hook-form'
+import { useForm, type FieldErrors } from 'react-hook-form'
 import client from '../api/client'
 import { slugify } from '../utils/slugify'
 import { uploadImageFiles, uploadImageUrls } from '../utils/uploads'
@@ -127,10 +127,10 @@ const ProductsPage = () => {
       setValue('stock', product.stock)
       setValue('description', product.description || '')
       setValue('datasheet', product.datasheet || '')
-      
+
       const currentImages = product.images || []
       setImageUrls(currentImages.map((url, index) => ({ id: `img-${index}-${Date.now()}`, url })))
-      
+
       const entries = Object.entries(product.specs || {})
       setDynamicSpecs(
         entries.map(([k, v], idx) => ({
@@ -139,7 +139,7 @@ const ProductsPage = () => {
           value: v !== null && v !== undefined ? String(v) : '',
         })),
       )
-      
+
       // Load options
       const productOptions = product.options || []
       setOptions(
@@ -148,7 +148,7 @@ const ProductsPage = () => {
           value: String(opt),
         })),
       )
-      
+
       // Load classifications
       const productClassifications = product.classifications || []
       setClassifications(
@@ -194,11 +194,11 @@ const ProductsPage = () => {
       }
       return acc
     }, {})
-    
+
     const optionsArray = optionsSnapshot
       .map((item) => String(item.value || '').trim())
       .filter(Boolean)
-    
+
     const classificationsArray = classificationsSnapshot
       .map((item) => String(item.value || '').trim())
       .filter(Boolean)
@@ -238,9 +238,9 @@ const ProductsPage = () => {
         uploadedExistingUrls = existingUrls
       }
     }
-    
+
     const mergedImages = [...uploadedExistingUrls, ...uploadedFileUrls]
-    
+
     const payload = {
       name: data.name,
       code: data.code || undefined,
@@ -299,19 +299,19 @@ const ProductsPage = () => {
       field: 'price',
       headerName: 'Giá',
       width: 180,
-      valueGetter: (params: any) => params.row?.price?.salePrice ?? 0,
-      renderCell: (params: any) => {
+      valueGetter: (_value, row: Product) => row?.price?.salePrice ?? 0,
+      renderCell: (params: GridRenderCellParams<Product>) => {
         const sale = params.row?.price?.salePrice ?? 0
         const original = params.row?.price?.originalPrice ?? 0
         return (
-        <Stack spacing={0.3}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {sale.toLocaleString('vi-VN')} đ
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Gốc: {original.toLocaleString('vi-VN')} đ
-          </Typography>
-        </Stack>
+          <Stack spacing={0.3}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {sale.toLocaleString('vi-VN')} đ
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Gốc: {original.toLocaleString('vi-VN')} đ
+            </Typography>
+          </Stack>
         )
       },
     },
@@ -369,18 +369,18 @@ const ProductsPage = () => {
   const normalizedSearch = normalizeText(search)
   const filteredProducts = normalizedSearch
     ? products.filter((p) => {
-        const haystacks = [
-          p.name,
-          p.code,
-          p.category,
-          p.description,
-          ...Object.entries(p.specs || {}).map(([k, v]) => `${k} ${v ?? ''}`),
-        ]
-        return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
-      })
+      const haystacks = [
+        p.name,
+        p.code,
+        p.category,
+        p.description,
+        ...Object.entries(p.specs || {}).map(([k, v]) => `${k} ${v ?? ''}`),
+      ]
+      return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
+    })
     : products
 
-  const onError = (errors: any) => {
+  const onError = (errors: FieldErrors<ProductFormValues>) => {
     console.error('Form validation errors:', errors)
     setToast({
       open: true,
@@ -550,13 +550,13 @@ const ProductsPage = () => {
                     )
                   }
                 />
-                 <IconButton
-                    aria-label="Xóa ảnh"
-                    color="error"
-                    onClick={() => setImageUrls((prev) => prev.filter((img) => img.id !== item.id))}
-                  >
-                    <DeleteIcon />
-                 </IconButton>
+                <IconButton
+                  aria-label="Xóa ảnh"
+                  color="error"
+                  onClick={() => setImageUrls((prev) => prev.filter((img) => img.id !== item.id))}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </Box>
             ))}
             <Button
@@ -656,7 +656,7 @@ const ProductsPage = () => {
             >
               Thêm thông số
             </Button>
-            
+
             <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
               Tuỳ chọn
             </Typography>
@@ -694,7 +694,7 @@ const ProductsPage = () => {
             >
               Thêm tuỳ chọn
             </Button>
-            
+
             <Typography variant="subtitle1" sx={{ mt: 1, mb: 0.5, gridColumn: { sm: 'span 2' } }}>
               Phân loại
             </Typography>
@@ -732,7 +732,7 @@ const ProductsPage = () => {
             >
               Thêm phân loại
             </Button>
-            
+
             <TextField
               margin="normal"
               fullWidth
