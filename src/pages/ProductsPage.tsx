@@ -23,7 +23,7 @@ import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Search as Searc
 import { useForm, type FieldErrors } from 'react-hook-form'
 import client from '../api/client'
 import { slugify } from '../utils/slugify'
-import { uploadImageFiles, uploadImageUrls } from '../utils/uploads'
+import { uploadImageFiles, uploadImageUrls, uploadDatasheetFile } from '../utils/uploads'
 import { useDbChange } from '../hooks/useDbChange'
 
 interface Product {
@@ -77,6 +77,7 @@ const ProductsPage = () => {
   const [classifications, setClassifications] = useState<{ id: string; value: string }[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imageUrls, setImageUrls] = useState<{ id: string; url: string }[]>([])
+  const [datasheetFile, setDatasheetFile] = useState<File | null>(null)
   const [toast, setToast] = useState<{
     open: boolean
     message: string
@@ -176,6 +177,7 @@ const ProductsPage = () => {
     setImageUrls([])
     setOptions([])
     setClassifications([])
+    setDatasheetFile(null)
   }
 
   const onSubmit = async (data: ProductFormValues) => {
@@ -227,6 +229,18 @@ const ProductsPage = () => {
       }
     }
 
+    let datasheetUrl = (data.datasheet || '').trim()
+    if (datasheetFile) {
+      try {
+        const uploadedDatasheetUrl = await uploadDatasheetFile(datasheetFile, folder)
+        if (uploadedDatasheetUrl) {
+          datasheetUrl = uploadedDatasheetUrl
+        }
+      } catch (error) {
+        console.error('Error uploading datasheet:', error)
+      }
+    }
+
     // Upload existing URLs to Cloudinary to ensure they are stored on our cloud
     let uploadedExistingUrls: string[] = []
     if (existingUrls.length) {
@@ -251,7 +265,7 @@ const ProductsPage = () => {
       },
       stock: Number(data.stock),
       description: data.description,
-      datasheet: data.datasheet,
+      datasheet: datasheetUrl || undefined,
       images: mergedImages,
       options: optionsArray.length > 0 ? optionsArray : undefined,
       classifications: classificationsArray.length > 0 ? classificationsArray : undefined,
@@ -484,6 +498,32 @@ const ProductsPage = () => {
               label="Link datasheet"
               {...register('datasheet')}
             />
+            <Box sx={{ gridColumn: { sm: 'span 2' } }}>
+              <Button variant="outlined" component="label">
+                Chọn file datasheet (PDF)
+                <input
+                  hidden
+                  accept="application/pdf"
+                  type="file"
+                  onChange={(e) => {
+                    const file = (e.target.files || [])[0]
+                    if (file) {
+                      setDatasheetFile(file)
+                    } else {
+                      setDatasheetFile(null)
+                    }
+                  }}
+                />
+              </Button>
+              <FormHelperText>
+                Có thể nhập link trực tiếp hoặc chọn file PDF. Nếu chọn file, hệ thống sẽ upload lên Cloudinary và dùng URL trả về.
+              </FormHelperText>
+              {datasheetFile && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  File đã chọn: {datasheetFile.name}
+                </Typography>
+              )}
+            </Box>
             <TextField
               margin="normal"
               fullWidth

@@ -44,3 +44,13 @@ export async function uploadImageUrls(urls: string[], folder: string) {
   return results.filter((url): url is string => Boolean(url))
 }
 
+export async function uploadDatasheetFile(file: File, folder: string) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await client.post('/upload/file', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    params: { folder },
+  })
+  return res.data?.secure_url || res.data?.url
+}
+
