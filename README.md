@@ -4,10 +4,10 @@
 
 **Electronics Admin** là nền tảng quản trị trung tâm dành cho hệ thống cửa hàng kinh doanh linh kiện điện tử. Được xây dựng trên nền tảng công nghệ hiện đại với **React 19**, **TypeScript** và **Vite**, ứng dụng cung cấp một trải nghiệm quản lý mượt mà, nhanh chóng và hiệu quả.
 
-Hệ thống được thiết kế để giải quyết toàn diện các bài toán quản lý vận hành: từ quản lý kho hàng phức tạp với hàng ngàn linh kiện, xử lý quy trình đơn hàng đa bước, đến việc chăm sóc khách hàng và phân tích hiệu quả kinh doanh.
+Hệ thống giúp giải quyết toàn diện các bài toán vận hành: từ quản lý kho hàng, xử lý đơn hàng, chăm sóc khách hàng đến theo dõi dòng tiền và báo cáo thống kê.
 
 ### 📞 Thông Tin Liên Hệ & Hỗ Trợ
-Nếu bạn cần hỗ trợ thêm về kỹ thuật, cấu hình file `.env` để chạy thử dự án, hoặc có thắc mắc chi tiết, vui lòng liên hệ:
+Nếu bạn cần hỗ trợ kỹ thuật, file `.env` mẫu để chạy thử, hoặc có thắc mắc, vui lòng liên hệ:
 - **Zalo**: [0827733475](https://zalo.me/0827733475)
 - **Email**: [levanduy.work@gmail.com](mailto:levanduy.work@gmail.com)
 
@@ -15,100 +15,91 @@ Nếu bạn cần hỗ trợ thêm về kỹ thuật, cấu hình file `.env` đ
 
 ## ✨ Tính Năng Chi Tiết
 
-Hệ thống cung cấp đầy đủ các module quản trị chuyên sâu:
+Hệ thống cung cấp các module quản trị chuyên sâu:
 
-### 1. 📊 Dashboard (Bảng Điều Khiển Trung Tâm)
-Nơi cung cấp cái nhìn tổng quan thời gian thực về sức khỏe của doanh nghiệp.
-- **Thống kê tổng hợp**: Hiển thị số lượng sản phẩm, đơn hàng, tổng số người dùng, và lượt đánh giá.
-- **Biểu đồ doanh thu**: (Dự kiến) Trực quan hóa doanh thu theo thời gian.
-- **Đơn hàng mới nhất**: Danh sách các đơn hàng vừa phát sinh, giúp nhân viên xử lý nhanh chóng.
-- **Real-time Updates**: Tự động cập nhật số liệu ngay khi có giao dịch mới thông qua kết nối Socket.IO.
+### 1. 📊 Dashboard (Tổng Quan)
+Nơi cung cấp cái nhìn tổng quát về tình hình kinh doanh.
+- **Thống kê số liệu**: Tổng số sản phẩm, đơn hàng, người dùng, voucher và lượt đánh giá.
+- **Doanh thu ước tính**: Hiển thị tổng doanh thu từ các đơn hàng.
+- **Đơn hàng mới nhất**: Danh sách 5 đơn hàng gần nhất cần xử lý.
+- **Biểu đồ tăng trưởng**: *(Dự kiến phát triển)* Trực quan hóa doanh thu theo thời gian.
 
 ### 2. 📦 Quản Lý Sản Phẩm (Products)
-Module cốt lõi để quản lý danh mục linh kiện điện tử đa dạng.
-- **Thông tin chi tiết**: Quản lý tên, mã SKU, giá bán, giá gốc, mô tả chi tiết.
-- **Thông số kỹ thuật (Specs)**: Cho phép thêm động các trường thông số kỹ thuật (Ví dụ: Điện áp, Dòng điện, Kích thước) phù hợp với đặc thù linh kiện điện tử.
-- **Quản lý hình ảnh**: Upload nhiều hình ảnh cho một sản phẩm, hỗ trợ xem trước (preview) và kéo thả.
-- **Datasheet**: Đính kèm file PDF datasheet cho các linh kiện chuyên dụng.
-- **Phân loại**: Gán danh mục (Category) để dễ dàng lọc và tìm kiếm trên app người dùng.
+Module cốt lõi quản lý kho linh kiện.
+- **Thông tin chi tiết**: Tên, mã SKU, giá bán/gốc, mô tả.
+- **Thông số kỹ thuật (Specs)**: Cho phép thêm các trường thông số động (Điện áp, Kích thước, v.v.).
+- **Quản lý hình ảnh**: Upload và xem trước nhiều hình ảnh sản phẩm.
+- **Phân loại**: Gán danh mục để tích hợp với App người dùng.
+- **Datasheet**: Đính kèm tài liệu kỹ thuật PDF.
 
-### 3. 📉 Quản Lý Tồn Kho (Inventory)
-Kiểm soát chặt chẽ luồng hàng hóa ra vào kho.
-- **Phiếu Nhập/Xuất Kho**: Tạo phiếu nhập kho (Inbound) khi nhập hàng từ nhà cung cấp và phiếu xuất kho (Outbound) khi bán hoặc hủy hàng.
-- **Track Log**: Ghi lại lịch sử, lý do và người thực hiện mỗi lần thay đổi số lượng tồn kho.
-- **Liên kết sản phẩm**: Tìm kiếm thông minh sản phẩm để làm phiếu kho theo tên hoặc mã.
-- **Cảnh báo**: (Dự kiến) Hệ thống cảnh báo khi số lượng tồn kho xuống dưới mức tối thiểu.
+### 3. 📉 Quản Lý Kho (Inventory)
+Theo dõi biến động hàng hóa.
+- **Phiếu Nhập/Xuất**: Tạo phiếu nhập kho (Inbound) và xuất kho (Outbound) chi tiết.
+- **Lịch sử**: Ghi lại thời gian, loại phiếu và người thực hiện.
+- **Cảnh báo tồn kho**: *(Dự kiến phát triển)* Thông báo khi hàng sắp hết.
 
 ### 4. 🛒 Quản Lý Đơn Hàng (Orders)
-Quy trình xử lý đơn hàng khép kín và chuyên nghiệp.
-- **Danh sách đơn hàng**: Xem tất cả đơn hàng với các bộ lọc thông minh (Ngày tạo, Trạng thái, Giá trị).
-- **Quy trình trạng thái**: Cập nhật trạng thái đơn hàng theo luồng chuẩn:
-  1. `pending` (Chờ xác nhận)
+Quy trình xử lý đơn hàng khép kín.
+- **Quy trình trạng thái**:
+  1. `ordered` (Đã đặt)
   2. `confirmed` (Đã xác nhận)
-  3. `shipping` (Đang giao hàng)
-  4. `delivered` (Giao thành công)
-  5. `cancelled` (Đã hủy)
-- **Chi tiết đơn hàng**: Xem danh sách sản phẩm, địa chỉ giao hàng, thông tin người nhận và phương thức thanh toán.
+  3. `packaged` (Đóng gói)
+  4. `shipped` (Giao hàng)
+  5. `delivered` (Thành công)
+  6. `cancelled` (Đã hủy)
+- **Xử lý sự cố**: Hỗ trợ **Hủy đơn** hoặc **Hoàn tác** trạng thái sai sót.
+- **Thanh toán**: Theo dõi trạng thái thanh toán (COD/Online).
 
 ### 5. 👥 Quản Lý Người Dùng (Users)
-Quản trị cơ sở dữ liệu khách hàng và nhân viên.
-- **Danh sách người dùng**: Hiển thị thông tin email, tên, vai trò (Role).
-- **Phân quyền**: Cấp quyền Admin hoặc User cho tài khoản.
-- **Trạng thái hoạt động**: Khóa (Block) hoặc mở khóa người dùng vi phạm chính sách.
+Quản trị tài khoản khách hàng và nhân viên.
+- **CRUD Tài khoản**: Thêm, sửa, xóa người dùng.
+- **Phân quyền**: Cấp quyền `Admin` hoặc `Customer`.
+- **Tặng Voucher**: Cấp mã giảm giá riêng trực tiếp cho từng tài khoản.
+- **Khóa tài khoản**: *(Dự kiến phát triển)* Chặn người dùng vi phạm.
 
 ### 6. 🚚 Quản Lý Vận Chuyển (Shipments)
-Theo dõi quá trình giao nhận hàng hóa.
-- **Danh sách vận đơn**: Quản lý các đơn hàng đang trong quá trình vận chuyển.
-- **Cập nhật tiến độ**: Ghi nhận trạng thái giao hàng từ đơn vị vận chuyển.
-- **Tra cứu**: Tìm kiếm vận đơn để hỗ trợ khách hàng khiếu nại.
+- **Theo dõi vận đơn**: Quản lý các đơn hàng đang vận chuyển (In Transit, Out for Delivery).
+- **Trạng thái COD**: Xác nhận đã thu tiền COD từ đơn vị vận chuyển.
+- **Tạo vận đơn nhanh**: Tự động tạo phiếu giao hàng từ đơn hàng.
 
 ### 7. 🎫 Quản Lý Voucher (Khuyến Mãi)
-Công cụ Marketing để thúc đẩy doanh số.
-- **Tạo mã giảm giá**: Thiết lập mã code, phần trăm giảm giá hoặc số tiền giảm cố định.
-- **Điều kiện áp dụng**: Quy định giá trị đơn hàng tối thiểu, số lượng mã tối đa.
-- **Thời gian**: Cài đặt ngày bắt đầu và kết thúc chương trình khuyến mãi.
-- **Trạng thái**: Kích hoạt hoặc tạm ngưng voucher ngay lập tức.
+- **Loại mã**: Giảm theo số tiền cố định, phần trăm (%), hoặc miễn phí vận chuyển.
+- **Cấu hình**: Thiết lập đơn hàng tối thiểu, mức giảm tối đa, ngày hết hạn.
+- **Phát hành**: Kích hoạt voucher cho toàn hệ thống.
 
 ### 8. ⭐ Quản Lý Đánh Giá (Reviews)
-Kiểm soát chất lượng và phản hồi từ khách hàng.
-- **Duyệt đánh giá**: Xem các bình luận và số sao đánh giá của khách hàng về sản phẩm.
-- **Kiểm duyệt**: Xóa các đánh giá spam hoặc không phù hợp/thô tục.
-- **Phân tích**: Nắm bắt tâm lý khách hàng qua xu hướng đánh giá.
+- **Kiểm duyệt**: Xem nội dung đánh giá và số sao từ khách hàng.
+- **Xử lý**: Xóa các đánh giá không phù hợp.
 
 ### 9. 💰 Quản Lý Giao Dịch (Transactions)
-Theo dõi dòng tiền vào hệ thống.
-- **Lịch sử thanh toán**: Ghi nhận các giao dịch thanh toán qua MoMo, Ngân hàng hoặc COD.
-- **Trạng thái thanh toán**: Xác minh giao dịch thành công hay thất bại.
-- **Đối soát**: Hỗ trợ kế toán đối soát doanh thu.
+- **Lịch sử thanh toán**: Ghi nhận giao dịch từ các cổng thanh toán (MoMo, ZaloPay, Bank).
+- **Chi tiết**: Mã giao dịch, số tiền, thời gian và trạng thái.
 
 ### 10. 🔔 Quản Lý Thông Báo (Notifications)
-Hệ thống gửi tin nhắn đến người dùng.
-- **Gửi thông báo đẩy (Push Notification)**: Gửi thông báo đến app mobile của khách hàng (Khuyến mãi mới, Tình trạng đơn hàng).
-- **Lịch sử gửi**: Xem lại các thông báo đã gửi.
+- **Push Notification**: Gửi thông báo đến App người dùng.
+- **Phân loại**: Thông báo chung hoặc cá nhân hóa.
 
 ### 11. 🖼️ Quản Lý Banner
-Tùy chỉnh giao diện hiển thị trên ứng dụng Mobile.
-- **Slide Banner**: Thêm/Sửa/Xóa các banner quảng cáo chạy trên trang chủ App.
-- **Điều hướng**: Gắn link sản phẩm hoặc danh mục vào banner để điều hướng người dùng.
-- **Sắp xếp**: Thay đổi thứ tự xuất hiện của các banner.
+- **Cấu hình Home App**: Thêm/Sửa/Xóa banner quảng cáo trên ứng dụng Mobile.
+- **Điều hướng**: Gắn liên kết đến sản phẩm/danh mục cụ thể.
 
 ---
 
 ## 🏗️ Kiến Trúc Hệ Thống
 
-Dự án được tổ chức theo cấu trúc `feature-based` rõ ràng, giúp dễ dàng bảo trì và mở rộng:
+Dự án tổ chức theo cấu trúc `feature-based` tiêu chuẩn:
 
 ```
 electronics-admin/
 ├── src/
-│   ├── api/                # Lớp giao tiếp với Backend (Axios, Socket.IO)
-│   ├── auth/               # Context và Logic xử lý đăng nhập/phân quyền
-│   ├── components/         # Các UI component tái sử dụng (Layout, Tables, Forms)
-│   ├── hooks/              # Custom Hooks (useDbChange, useAuth...)
-│   ├── pages/              # Các màn hình chức năng chính (Dashboard, Products, Orders...)
-│   ├── utils/              # Các hàm tiện ích (Format tiền tệ, Xử lý ngày tháng, Upload ảnh)
-│   ├── App.tsx             # Routing và cấu hình Theme
-│   └── main.tsx            # Entry point
+│   ├── api/                # Client Axios & Socket.IO
+│   ├── auth/               # Auth Context & Guards
+│   ├── components/         # Reusable UI Components
+│   ├── hooks/              # Custom Hooks (useDbChange, useAuth)
+│   ├── pages/              # Main Screens (Page Components)
+│   ├── utils/              # Helpers & Formatters
+│   ├── App.tsx             # Main App & Routing
+│   └── main.tsx            # Entry Point
 ```
 
 ### Công Nghệ Sử Dụng
@@ -116,121 +107,57 @@ electronics-admin/
 *   **Frontend Framework**: React 19
 *   **Language**: TypeScript 5.9
 *   **Build Tool**: Vite 7
-*   **UI Library**: Material UI (MUI) v7 - Giao diện chuẩn Enterprise.
-*   **State Management**: React Context API & Local State.
-*   **Form Handling**: React Hook Form - Xử lý form hiệu năng cao.
-*   **Data Fetching**: Axios (REST API).
-*   **Real-time**: Socket.IO Client - Nhận cập nhật dữ liệu tức thì.
-*   **Linting**: ESLint + Prettier - Đảm bảo chất lượng code.
+*   **UI Library**: Material UI (MUI) v7
+*   **Form**: React Hook Form
+*   **Network**: Axios
+*   **Real-time**: Socket.IO Client
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt và Chạy Ứng Dụng
-
-*(Phần này được giữ nguyên theo hướng dẫn chuẩn của dự án)*
+## 🚀 Hướng Dẫn Cài Đặt & Chạy
 
 ### 1. Clone repository
-
 ```bash
 git clone <repository-url>
 cd electronics-admin
 ```
 
 ### 2. Cài đặt dependencies
-
 ```bash
 npm install
 ```
 
 ### 3. Cấu hình Environment Variables
-
-Tạo file `.env` trong thư mục `electronics-admin`:
-
+Tạo file `.env` tại thư mục gốc:
 ```env
 # API Configuration
 VITE_API_URL=http://localhost:3000
 ```
+> *Lưu ý: Liên hệ Admin để lấy cấu hình chuẩn nếu cần.*
 
-**Lưu ý:**
-- `VITE_API_URL` là base URL của backend API
-- Các biến môi trường phải bắt đầu với `VITE_` để Vite có thể expose chúng trong client code
-- Đảm bảo backend API đang chạy và có thể truy cập từ URL này
-
-### 4. Chạy ứng dụng
-
+### 4. Chạy ứng dụng (Development)
 ```bash
-# Development mode
 npm run dev
 ```
+Truy cập: `http://localhost:5173`
 
-Ứng dụng sẽ chạy tại `http://localhost:5173` (hoặc port khác nếu 5173 đã được sử dụng).
-
-### 5. Build production
-
+### 5. Build Production
 ```bash
 npm run build
-```
-
-Kết quả build sẽ nằm trong thư mục `dist/`, có thể deploy lên:
-- **Static hosting**: Vercel, Netlify, GitHub Pages
-- **Nginx**: Serve static files
-- **CDN**: AWS S3 + CloudFront, Cloudflare Pages
-
-### 6. Preview production build
-
-```bash
+# Preview build
 npm run preview
 ```
 
-## 🔐 Đăng nhập & Phân quyền
+---
 
-### Tạo tài khoản Admin
+## 🔐 Đăng Nhập & Bảo Mật
 
-Để đăng nhập vào admin panel, bạn cần một tài khoản với role `admin`:
-
-1. **Tạo qua API** (nếu backend hỗ trợ):
-   ```bash
-   curl -X POST http://localhost:3000/users \
-     -H "Content-Type: application/json" \
-     -d '{
-       "email": "admin@example.com",
-       "password": "password123",
-       "name": "Admin User",
-       "role": "admin"
-     }'
-   ```
-
-2. **Hoặc cập nhật role trong database**:
-   - Tìm user trong MongoDB collection `users`
-   - Cập nhật field `role` thành `"admin"`
-
-### Authentication Flow
-
-1. **Đăng nhập**: Nhập email và password tại `/login`
-2. **Token Storage**: 
-   - Access token được lưu trong `localStorage` với key `token`
-   - Refresh token được lưu với key `refreshToken`
-   - User info được lưu với key `user`
-3. **Auto Attach Token**: Mọi request sẽ tự động đính kèm header `Authorization: Bearer <token>`
-4. **Token Refresh**: Nếu token hết hạn (401), hệ thống sẽ tự động refresh token
-5. **Logout**: Xóa tokens và redirect về `/login`
+- **Cơ chế**: JWT Authentication (Access Token & Refresh Token).
+- **Phân quyền**:
+  - Dữ liệu được bảo vệ dựa trên Role (`admin`).
+  - Token tự động đính kèm vào Header `Authorization`.
+  - Tự động logout khi hết phiên đăng nhập.
 
 ---
 
-## ⚠️ Lưu ý quan trọng
-
-### CORS Configuration
-
-Đảm bảo backend API đã cấu hình CORS để cho phép requests từ admin frontend:
-
-```typescript
-// Backend (NestJS)
-app.enableCors({
-  origin: ['http://localhost:5173', 'https://your-admin-domain.com'],
-  credentials: true,
-})
-```
-
----
-
-Dự án được xây dựng và bảo trì bởi team phát triển **Electronics Shop**. Mọi đóng góp và ý kiến phản hồi đều được hoan nghênh.
+Dự án được phát triển và duy trì bởi **Electronics Shop Team**.
