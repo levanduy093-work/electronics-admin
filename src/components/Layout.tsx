@@ -41,12 +41,6 @@ const Layout = () => {
   const { logout, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const currentItem = menuItems.find(
-    (item) =>
-      location.pathname === item.path ||
-      (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)),
-  )
-
   const menuItems = useMemo(
     () => [
       { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -62,6 +56,11 @@ const Layout = () => {
       { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications' },
     ],
     [],
+  )
+  const currentItem = menuItems.find(
+    (item) =>
+      location.pathname === item.path ||
+      (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)),
   )
 
   const handleDrawerToggle = () => {
