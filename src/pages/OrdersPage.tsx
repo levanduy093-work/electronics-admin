@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Typography,
@@ -21,9 +21,16 @@ import {
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { Visibility as VisibilityIcon, Cancel as CancelIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import {
+  Visibility as VisibilityIcon,
+  Cancel as CancelIcon,
+  Delete as DeleteIcon,
+  OpenInNew as OpenInNewIcon,
+} from '@mui/icons-material'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { useDbChange } from '../hooks/useDbChange'
+import { useNavigate } from 'react-router-dom'
 
 interface OrderStatus {
   ordered?: string
@@ -74,46 +81,72 @@ interface Shipment {
 }
 
 const OrdersPage = () => {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [shipments, setShipments] = useState<Shipment[]>([])
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: async (params: { order: Order; statusField: keyof OrderStatus }) => {
+      const payload = {
+        status: {
+          ...(params.order.status || {}),
+          [params.statusField]: new Date().toISOString(),
+        },
+      }
+      return client.patch(`/orders/${params.order._id}`, payload)
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['shipments'] }),
+      ])
+    },
+  })
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (order: Order) => client.patch(`/orders/${order._id}`, { isCancelled: true }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
 
   const fetchOrders = async () => {
-    setLoading(true)
-    try {
-      const response = await client.get('/orders')
-      setOrders(response.data)
-    } catch (error) {
-      console.error('Error fetching orders:', error)
-    } finally {
-      setLoading(false)
-    }
+    const response = await client.get('/orders')
+    return response.data as Order[]
   }
 
   const fetchShipments = async () => {
     try {
       const response = await client.get('/shipments')
-      const data = response.data || []
-      setShipments(data)
-      return data
+      return (response.data || []) as Shipment[]
     } catch (error) {
       console.error('Error fetching shipments:', error)
       return []
     }
   }
 
-  useEffect(() => {
-    fetchOrders()
-    fetchShipments()
-  }, [])
+  const {
+    data: orders = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['orders'],
+    queryFn: fetchOrders,
+    refetchInterval: 30000,
+  })
+
+  const { data: shipments = [] } = useQuery({
+    queryKey: ['shipments'],
+    queryFn: fetchShipments,
+    refetchInterval: 30000,
+  })
 
   useDbChange(['orders', 'shipments'], () => {
-    fetchOrders()
-    fetchShipments()
+    queryClient.invalidateQueries({ queryKey: ['orders'] })
+    queryClient.invalidateQueries({ queryKey: ['shipments'] })
   })
 
   const handleOpen = (order: Order) => {
@@ -132,14 +165,7 @@ const OrdersPage = () => {
     try {
       setUpdating(true)
       setUpdatingId(target._id)
-      const payload = {
-        status: {
-          ...(target.status || {}),
-          [statusField]: new Date().toISOString(),
-        },
-      }
-      await client.patch(`/orders/${target._id}`, payload)
-      await Promise.all([fetchOrders(), fetchShipments()])
+      await updateOrderStatusMutation.mutateAsync({ order: target, statusField })
       if (!order) handleClose()
     } catch (error) {
       console.error('Error updating order status:', error)
@@ -155,8 +181,7 @@ const OrdersPage = () => {
     try {
       setUpdating(true)
       setUpdatingId(target._id)
-      await client.patch(`/orders/${target._id}`, { isCancelled: true })
-      await fetchOrders()
+      await cancelOrderMutation.mutateAsync(target)
       if (!order) handleClose()
     } catch (error) {
       console.error('Error cancelling order:', error)
@@ -184,7 +209,7 @@ const OrdersPage = () => {
       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
     }
     const res = await client.post('/shipments', payload)
-    await fetchShipments()
+    await queryClient.invalidateQueries({ queryKey: ['shipments'] })
     return res.data as Shipment
   }
 
@@ -195,8 +220,10 @@ const OrdersPage = () => {
       const shipment = await ensureShipmentForOrder(order)
       if (!shipment?._id) return
       await client.patch(`/shipments/${shipment._id}`, { status: nextStatus })
-      await fetchShipments()
-      await fetchOrders()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['shipments'] }),
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+      ])
     } catch (error) {
       console.error('Error updating shipment status:', error)
     } finally {
@@ -212,7 +239,10 @@ const OrdersPage = () => {
       const shipment = await ensureShipmentForOrder(order)
       if (!shipment?._id) return
       await client.patch(`/shipments/${shipment._id}`, { paymentStatus })
-      await Promise.all([fetchShipments(), fetchOrders()])
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['shipments'] }),
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+      ])
     } catch (error) {
       console.error('Error updating shipment payment status:', error)
     } finally {
@@ -239,7 +269,7 @@ const OrdersPage = () => {
       setUpdating(true)
       setUpdatingId(order._id)
       await client.patch(`/orders/${order._id}`, { status: {}, isCancelled: false })
-      await fetchOrders()
+      await queryClient.invalidateQueries({ queryKey: ['orders'] })
     } catch (error) {
       console.error('Error rolling back order:', error)
     } finally {
@@ -255,10 +285,10 @@ const OrdersPage = () => {
       setUpdating(true)
       setUpdatingId(order._id)
       await client.delete(`/orders/${order._id}`)
-      setOrders((prev) => prev.filter((o) => o._id !== order._id))
+      await queryClient.invalidateQueries({ queryKey: ['orders'] })
     } catch (error) {
       console.error('Error deleting order:', error)
-      await fetchOrders()
+      await queryClient.invalidateQueries({ queryKey: ['orders'] })
     } finally {
       setUpdating(false)
       setUpdatingId(null)
@@ -489,6 +519,17 @@ const OrdersPage = () => {
               </IconButton>
             </Box>
 
+            <Box sx={{ flex: '0 0 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <IconButton
+                onClick={() => navigate(`/orders/${order._id}`)}
+                color="primary"
+                size="small"
+                aria-label="Mở trang chi tiết"
+              >
+                <OpenInNewIcon />
+              </IconButton>
+            </Box>
+
             <Box sx={{ flex: '1 1 200px', display: 'flex', gap: 0.75, alignItems: 'center', minHeight: 36, height: '100%' }}>
               {nextActions.length > 0 ? (
                 nextActions.map((btn, idx) => (
@@ -660,7 +701,7 @@ const OrdersPage = () => {
       </Box>
 
       <Paper sx={{ mt: 2, p: 2, borderRadius: 2, boxShadow: 3 }}>
-        {loading && <LinearProgress sx={{ mb: 2 }} />}
+        {(isLoading || isFetching) && <LinearProgress sx={{ mb: 2 }} />}
 
         <DataGrid
           rows={orders}
@@ -678,7 +719,7 @@ const OrdersPage = () => {
           pageSizeOptions={[5, 10, 25]}
           disableRowSelectionOnClick
           disableColumnMenu
-          loading={loading}
+          loading={isLoading || isFetching}
           sx={{
             '& .MuiDataGrid-columnHeaders': { backgroundColor: 'grey.50', borderBottomColor: 'grey.200' },
             '& .MuiDataGrid-columnHeaderTitle': { fontWeight: 700 },

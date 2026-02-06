@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Button,
@@ -16,6 +16,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { useDbChange } from '../hooks/useDbChange'
 
@@ -43,31 +44,28 @@ interface TransactionFormValues {
 }
 
 const TransactionsPage = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const { register, handleSubmit, reset, setValue } = useForm<TransactionFormValues>()
+  const queryClient = useQueryClient()
 
   const fetchTransactions = async () => {
-    setLoading(true)
-    try {
-      const res = await client.get('/transactions')
-      setTransactions(res.data)
-    } catch (error) {
-      console.error('Error fetching transactions:', error)
-    } finally {
-      setLoading(false)
-    }
+    const res = await client.get('/transactions')
+    return res.data as Transaction[]
   }
 
-  useEffect(() => {
-    fetchTransactions()
-  }, [])
+  const {
+    data: transactions = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: fetchTransactions,
+  })
 
   useDbChange(['transactions'], () => {
-    fetchTransactions()
+    queryClient.invalidateQueries({ queryKey: ['transactions'] })
   })
 
   const handleOpen = (transaction: Transaction | null = null) => {
@@ -109,7 +107,7 @@ const TransactionsPage = () => {
       } else {
         await client.post('/transactions', payload)
       }
-      fetchTransactions()
+      await queryClient.invalidateQueries({ queryKey: ['transactions'] })
       handleClose()
     } catch (error) {
       console.error('Error saving transaction:', error)
@@ -122,7 +120,7 @@ const TransactionsPage = () => {
     if (window.confirm('Bạn có chắc muốn xóa giao dịch này?')) {
       try {
         await client.delete(`/transactions/${id}`)
-        fetchTransactions()
+        await queryClient.invalidateQueries({ queryKey: ['transactions'] })
       } catch (error) {
         console.error('Error deleting transaction:', error)
       }
@@ -187,7 +185,7 @@ const TransactionsPage = () => {
         </Button>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoading || isFetching) && <LinearProgress />}
 
       <DataGrid
         rows={transactions}

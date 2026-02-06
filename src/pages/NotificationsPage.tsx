@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -22,6 +22,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { useDbChange } from '../hooks/useDbChange'
 
@@ -84,12 +85,11 @@ const defaultValues: NotificationFormValues = {
 const TYPE_OPTIONS = ['system', 'promo', 'order']
 
 const NotificationsPage = () => {
-  const [items, setItems] = useState<AdminNotification[]>([])
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AdminNotification | null>(null)
+  const queryClient = useQueryClient()
   const { control, handleSubmit, reset, watch } = useForm<NotificationFormValues>({
     defaultValues,
   })
@@ -97,23 +97,22 @@ const NotificationsPage = () => {
   const targetScope = watch('targetScope')
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await client.get('/notifications/admin/all')
-      setItems(res.data || [])
-    } catch (error) {
-      console.error('Không tải được thông báo:', error)
-    } finally {
-      setLoading(false)
-    }
+    const res = await client.get('/notifications/admin/all')
+    return (res.data || []) as AdminNotification[]
   }, [])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const {
+    data: items = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['notifications:admin'],
+    queryFn: fetchData,
+    refetchInterval: 30000,
+  })
 
   useDbChange(['notifications'], () => {
-    fetchData()
+    queryClient.invalidateQueries({ queryKey: ['notifications:admin'] })
   })
 
   const handleClose = () => {
@@ -172,7 +171,7 @@ const NotificationsPage = () => {
         await client.post('/notifications/admin', payload)
       }
       handleClose()
-      fetchData()
+      await queryClient.invalidateQueries({ queryKey: ['notifications:admin'] })
     } catch (error) {
       console.error('Lưu thông báo thất bại:', error)
       alert('Không thể lưu thông báo, kiểm tra log.')
@@ -185,11 +184,11 @@ const NotificationsPage = () => {
     if (!window.confirm('Xóa thông báo này?')) return
     try {
       await client.delete(`/notifications/admin/${id}`)
-      fetchData()
+      await queryClient.invalidateQueries({ queryKey: ['notifications:admin'] })
     } catch (error) {
       console.error('Xóa thông báo thất bại:', error)
     }
-  }, [fetchData])
+  }, [queryClient])
 
   const columns: GridColDef<AdminNotification>[] = useMemo(() => {
     return [
@@ -333,7 +332,7 @@ const NotificationsPage = () => {
         </Stack>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoading || isFetching) && <LinearProgress />}
 
       <PaperWrapper>
         <DataGrid

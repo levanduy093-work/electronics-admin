@@ -27,6 +27,7 @@ import {
   CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material'
 import { Controller, useForm } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { slugify } from '../utils/slugify'
 import { uploadImageByUrl, uploadImageFile } from '../utils/uploads'
@@ -59,16 +60,14 @@ interface ProductOption {
 }
 
 const BannersPage = () => {
-  const [banners, setBanners] = useState<Banner[]>([])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null)
   const [reorderingId, setReorderingId] = useState<string | null>(null)
-  const [products, setProducts] = useState<ProductOption[]>([])
   const [productSearch, setProductSearch] = useState('')
+  const queryClient = useQueryClient()
 
   const { control, register, reset, setValue, handleSubmit, watch } = useForm<BannerFormValues>({
     defaultValues: {
@@ -87,12 +86,8 @@ const BannersPage = () => {
     [banners],
   )
 
-  useEffect(() => {
-    fetchBanners()
-  }, [])
-
   useDbChange(['banners'], () => {
-    fetchBanners()
+    queryClient.invalidateQueries({ queryKey: ['banners'] })
   })
 
   useEffect(() => {
@@ -102,18 +97,25 @@ const BannersPage = () => {
     }
   }, [editingBanner?.productId, products])
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await client.get('/products')
-        const items: ProductOption[] = (response.data || []).map((p: { _id: string; name: string }) => ({ _id: p._id, name: p.name }))
-        setProducts(items)
-      } catch (error) {
-        console.error('Error fetching products:', error)
-      }
-    }
-    fetchProducts()
-  }, [])
+  const fetchProducts = async () => {
+    const response = await client.get('/products')
+    return (response.data || []).map((p: { _id: string; name: string }) => ({ _id: p._id, name: p.name })) as ProductOption[]
+  }
+
+  const fetchBanners = async () => {
+    const response = await client.get('/banners')
+    return (response.data || []) as Banner[]
+  }
+
+  const { data: banners = [], isLoading, isFetching } = useQuery({
+    queryKey: ['banners'],
+    queryFn: fetchBanners,
+  })
+
+  const { data: products = [] } = useQuery({
+    queryKey: ['products:options'],
+    queryFn: fetchProducts,
+  })
 
   useEffect(() => {
     if (!imageFile) {
@@ -126,18 +128,6 @@ const BannersPage = () => {
   }, [imageFile])
 
   const watchImageUrl = watch('imageUrl')
-
-  const fetchBanners = async () => {
-    setLoading(true)
-    try {
-      const response = await client.get('/banners')
-      setBanners(response.data || [])
-    } catch (error) {
-      console.error('Error fetching banners:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleOpen = (banner?: Banner) => {
     setEditingBanner(banner || null)
@@ -218,7 +208,7 @@ const BannersPage = () => {
       } else {
         await client.post('/banners', payload)
       }
-      await fetchBanners()
+      await queryClient.invalidateQueries({ queryKey: ['banners'] })
       handleClose()
     } catch (error) {
       console.error('Error saving banner:', error)
@@ -233,7 +223,7 @@ const BannersPage = () => {
     if (!confirmed) return
     try {
       await client.delete(`/banners/${banner._id}`)
-      await fetchBanners()
+      await queryClient.invalidateQueries({ queryKey: ['banners'] })
     } catch (error) {
       console.error('Error deleting banner:', error)
       alert('Không thể xóa banner')
@@ -257,7 +247,7 @@ const BannersPage = () => {
     try {
       setReorderingId(bannerId)
       await client.patch('/banners/reorder', payload)
-      await fetchBanners()
+      await queryClient.invalidateQueries({ queryKey: ['banners'] })
     } catch (error) {
       console.error('Error reordering banners:', error)
       alert('Không thể sắp xếp banner')
@@ -428,7 +418,7 @@ const BannersPage = () => {
         </Button>
       </Box>
 
-      {(loading || reorderingId) && (
+      {((isLoading || isFetching) || reorderingId) && (
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
           <LinearProgress sx={{ flex: 1 }} color={reorderingId ? 'secondary' : 'primary'} />
           <Typography variant="caption" color="text.secondary">
@@ -441,7 +431,7 @@ const BannersPage = () => {
         autoHeight
         rows={sortedBanners}
         columns={columns}
-        loading={loading}
+        loading={isLoading || isFetching}
         getRowId={(row) => row._id}
         disableRowSelectionOnClick
         initialState={{

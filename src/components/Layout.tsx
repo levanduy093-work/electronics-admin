@@ -41,6 +41,11 @@ const Layout = () => {
   const { logout, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const currentItem = menuItems.find(
+    (item) =>
+      location.pathname === item.path ||
+      (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)),
+  )
 
   const menuItems = useMemo(
     () => [
@@ -120,7 +125,7 @@ const Layout = () => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find((item) => item.path === location.pathname)?.text || 'Dashboard'}
+            {currentItem?.text || 'Dashboard'}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box sx={{ textAlign: 'right' }}>

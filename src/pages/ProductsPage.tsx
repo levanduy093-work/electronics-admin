@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Box,
   Button,
@@ -19,12 +19,20 @@ import {
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Search as SearchIcon,
+  OpenInNew as OpenInNewIcon,
+} from '@mui/icons-material'
 import { useForm, type FieldErrors } from 'react-hook-form'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { slugify } from '../utils/slugify'
 import { uploadImageFiles, uploadImageUrls, uploadDatasheetFile } from '../utils/uploads'
 import { useDbChange } from '../hooks/useDbChange'
+import { useNavigate } from 'react-router-dom'
 
 interface Product {
   _id: string
@@ -65,10 +73,8 @@ interface ProductFormValues {
 
 const ProductsPage = () => {
   const MAX_IMAGE_MB = 5
-  const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [backgroundSaving, setBackgroundSaving] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -95,25 +101,37 @@ const ProductsPage = () => {
     getValues,
     formState: { errors },
   } = useForm<ProductFormValues>()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  const upsertProductMutation = useMutation({
+    mutationFn: async (params: { payload: any; productId?: string }) => {
+      if (params.productId) {
+        return client.patch(`/products/${params.productId}`, params.payload)
+      }
+      return client.post('/products', params.payload)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['products'] })
+    },
+  })
 
   const fetchProducts = async () => {
-    setLoading(true)
-    try {
-      const response = await client.get('/products')
-      setProducts(response.data)
-    } catch (error) {
-      console.error('Error fetching products:', error)
-    } finally {
-      setLoading(false)
-    }
+    const response = await client.get('/products')
+    return response.data as Product[]
   }
 
-  useEffect(() => {
-    fetchProducts()
-  }, [])
+  const {
+    data: products = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+  })
 
   useDbChange(['products'], () => {
-    fetchProducts()
+    queryClient.invalidateQueries({ queryKey: ['products'] })
   })
 
   const handleOpen = (product: Product | null = null) => {
@@ -277,13 +295,11 @@ const ProductsPage = () => {
     }
 
     try {
-      if (productBeingEdited) {
-        await client.patch(`/products/${productBeingEdited._id}`, payload)
-      } else {
-        await client.post('/products', payload)
-      }
+      await upsertProductMutation.mutateAsync({
+        payload,
+        productId: productBeingEdited?._id,
+      })
       setToast({ open: true, message: 'Lưu sản phẩm thành công', severity: 'success' })
-      fetchProducts()
     } catch (error) {
       console.error('Error saving product:', error)
       setToast({ open: true, message: 'Lưu sản phẩm thất bại. Vui lòng thử lại.', severity: 'error' })
@@ -298,7 +314,7 @@ const ProductsPage = () => {
     if (window.confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
       try {
         await client.delete(`/products/${id}`)
-        fetchProducts()
+        await queryClient.invalidateQueries({ queryKey: ['products'] })
       } catch (error) {
         console.error('Error deleting product:', error)
       }
@@ -347,9 +363,12 @@ const ProductsPage = () => {
     {
       field: 'actions',
       headerName: 'Hành động',
-      width: 140,
+      width: 180,
       renderCell: (params) => (
         <>
+          <IconButton onClick={() => navigate(`/products/${params.row._id}`)} color="primary">
+            <OpenInNewIcon />
+          </IconButton>
           <IconButton onClick={() => handleOpen(params.row)} color="primary">
             <EditIcon />
           </IconButton>
@@ -381,8 +400,9 @@ const ProductsPage = () => {
   }
 
   const normalizedSearch = normalizeText(search)
-  const filteredProducts = normalizedSearch
-    ? products.filter((p) => {
+  const filteredProducts = useMemo(() => {
+    if (!normalizedSearch) return products
+    return products.filter((p) => {
       const haystacks = [
         p.name,
         p.code,
@@ -392,7 +412,7 @@ const ProductsPage = () => {
       ]
       return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
     })
-    : products
+  }, [normalizedSearch, products])
 
   const onError = (errors: FieldErrors<ProductFormValues>) => {
     console.error('Form validation errors:', errors)
@@ -435,7 +455,7 @@ const ProductsPage = () => {
         </Stack>
       </Box>
 
-      {(loading || backgroundSaving) && (
+      {((isLoading || isFetching) || backgroundSaving) && (
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
           <LinearProgress sx={{ flex: 1 }} color={backgroundSaving ? 'secondary' : 'primary'} />
           <Typography variant="caption" color="text.secondary">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Button,
@@ -22,6 +22,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 
 interface Movement {
@@ -47,13 +48,10 @@ interface ProductOption {
 }
 
 const InventoryMovementsPage = () => {
-  const [movements, setMovements] = useState<Movement[]>([])
-  const [products, setProducts] = useState<ProductOption[]>([])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [productsLoading, setProductsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Movement | null>(null)
+  const queryClient = useQueryClient()
   const { register, handleSubmit, reset, setValue, control } = useForm<{
     productId: string
     type: string
@@ -64,53 +62,52 @@ const InventoryMovementsPage = () => {
   })
 
   const fetchMovements = async () => {
-    setLoading(true)
-    try {
-      const res = await client.get('/inventory-movements')
-      const normalized = (res.data || []).map(
-        (m: Movement & { created_at?: string | Date; updated_at?: string | Date; _id?: unknown }) => {
-          const normalizeId = (value: unknown) =>
-            typeof value === 'string'
-              ? value
-              : (value as { toString?: () => string })?.toString?.() ?? String(value)
-          const normalizeDate = (value?: string | Date) =>
-            value ? new Date(value).toISOString() : undefined
-          const createdRaw = m.createdAt ?? m.created_at
-          const updatedRaw = m.updatedAt ?? m.updated_at
+    const res = await client.get('/inventory-movements')
+    const normalized = (res.data || []).map(
+      (m: Movement & { created_at?: string | Date; updated_at?: string | Date; _id?: unknown }) => {
+        const normalizeId = (value: unknown) =>
+          typeof value === 'string'
+            ? value
+            : (value as { toString?: () => string })?.toString?.() ?? String(value)
+        const normalizeDate = (value?: string | Date) =>
+          value ? new Date(value).toISOString() : undefined
+        const createdRaw = m.createdAt ?? m.created_at
+        const updatedRaw = m.updatedAt ?? m.updated_at
 
-          return {
-            ...m,
-            _id: normalizeId(m._id),
-            productId: normalizeId(m.productId),
-            createdAt: normalizeDate(createdRaw) ?? normalizeDate(updatedRaw),
-            updatedAt: normalizeDate(updatedRaw),
-          }
-        },
-      )
-      setMovements(normalized)
-    } catch (error) {
-      console.error('Error fetching inventory movements:', error)
-    } finally {
-      setLoading(false)
-    }
+        return {
+          ...m,
+          _id: normalizeId(m._id),
+          productId: normalizeId(m.productId),
+          createdAt: normalizeDate(createdRaw) ?? normalizeDate(updatedRaw),
+          updatedAt: normalizeDate(updatedRaw),
+        }
+      },
+    )
+    return normalized as Movement[]
   }
 
   const fetchProducts = async () => {
-    setProductsLoading(true)
-    try {
-      const res = await client.get('/products')
-      setProducts(res.data)
-    } catch (error) {
-      console.error('Error fetching products:', error)
-    } finally {
-      setProductsLoading(false)
-    }
+    const res = await client.get('/products')
+    return res.data as ProductOption[]
   }
 
-  useEffect(() => {
-    fetchMovements()
-    fetchProducts()
-  }, [])
+  const {
+    data: movements = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['inventory-movements'],
+    queryFn: fetchMovements,
+  })
+
+  const {
+    data: products = [],
+    isLoading: isLoadingProducts,
+    isFetching: isFetchingProducts,
+  } = useQuery({
+    queryKey: ['products:inventory'],
+    queryFn: fetchProducts,
+  })
 
   const handleOpen = (movement: Movement | null = null) => {
     setEditing(movement)
@@ -149,7 +146,7 @@ const InventoryMovementsPage = () => {
       } else {
         await client.post('/inventory-movements', payload)
       }
-      fetchMovements()
+      await queryClient.invalidateQueries({ queryKey: ['inventory-movements'] })
       handleClose()
     } catch (error) {
       console.error('Error saving inventory movement:', error)
@@ -165,7 +162,7 @@ const InventoryMovementsPage = () => {
     if (window.confirm('Bạn có chắc muốn xóa phiếu kho này?')) {
       try {
         await client.delete(`/inventory-movements/${id}`)
-        fetchMovements()
+        await queryClient.invalidateQueries({ queryKey: ['inventory-movements'] })
       } catch (error) {
         console.error('Error deleting inventory movement:', error)
       }
@@ -268,7 +265,7 @@ const InventoryMovementsPage = () => {
         </Button>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoading || isFetching) && <LinearProgress />}
 
       <DataGrid
         rows={movements}
@@ -296,7 +293,7 @@ const InventoryMovementsPage = () => {
                     fullWidth
                     options={products}
                     value={selectedProduct}
-                    loading={productsLoading}
+                    loading={isLoadingProducts || isFetchingProducts}
                     onChange={(_, value) => field.onChange(value?._id ?? '')}
                     getOptionLabel={(option) =>
                       option?.name ? `${option.name}${option.code ? ` (${option.code})` : ''}` : ''

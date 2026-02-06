@@ -14,6 +14,7 @@ import {
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Delete as DeleteIcon } from '@mui/icons-material'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { useRef } from 'react'
 import { getSocket } from '../api/socket'
@@ -37,11 +38,9 @@ interface ProductOption {
 }
 
 const ReviewsPage = () => {
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [products, setProducts] = useState<ProductOption[]>([])
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const socketRef = useRef<ReturnType<typeof getSocket> | null>(null)
+  const queryClient = useQueryClient()
 
   const productMap = useMemo(() => new Map(products.map((product) => [product._id, product])), [products])
   const selectedProduct = useMemo(
@@ -49,34 +48,32 @@ const ReviewsPage = () => {
     [products, selectedProductId]
   )
 
-  const fetchReviews = async (productId?: string) => {
-    setLoading(true)
-    try {
-      const url = productId ? `/reviews/product/${productId}` : '/reviews'
-      const response = await client.get(url)
-      setReviews(response.data)
-    } catch (error) {
-      console.error('Error fetching reviews:', error)
-    } finally {
-      setLoading(false)
-    }
+  const fetchProducts = async () => {
+    const response = await client.get('/products')
+    return response.data as ProductOption[]
   }
 
-  const fetchInitialData = async () => {
-    setLoading(true)
-    try {
-      const [productsResponse, reviewsResponse] = await Promise.all([client.get('/products'), client.get('/reviews')])
-      setProducts(productsResponse.data)
-      setReviews(reviewsResponse.data)
-    } catch (error) {
-      console.error('Error fetching initial data:', error)
-    } finally {
-      setLoading(false)
-    }
+  const fetchReviews = async (productId?: string | null) => {
+    const url = productId ? `/reviews/product/${productId}` : '/reviews'
+    const response = await client.get(url)
+    return response.data as Review[]
   }
+
+  const { data: products = [], isLoading: isLoadingProducts, isFetching: isFetchingProducts } = useQuery({
+    queryKey: ['products:reviews'],
+    queryFn: fetchProducts,
+  })
+
+  const {
+    data: reviews = [],
+    isLoading: isLoadingReviews,
+    isFetching: isFetchingReviews,
+  } = useQuery({
+    queryKey: ['reviews', selectedProductId],
+    queryFn: () => fetchReviews(selectedProductId),
+  })
 
   useEffect(() => {
-    fetchInitialData()
     socketRef.current = getSocket()
     return () => {
       socketRef.current = null
@@ -84,18 +81,18 @@ const ReviewsPage = () => {
   }, [])
 
   useDbChange(['reviews'], () => {
-    fetchReviews(selectedProductId ?? undefined)
+    queryClient.invalidateQueries({ queryKey: ['reviews'] })
   })
 
   useDbChange(['products'], () => {
-    client.get('/products').then((res) => setProducts(res.data)).catch(() => undefined)
+    queryClient.invalidateQueries({ queryKey: ['products:reviews'] })
   })
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Bạn có chắc muốn xóa đánh giá này?')) {
       try {
         await client.delete(`/reviews/${id}`)
-        fetchReviews(selectedProductId ?? undefined)
+        await queryClient.invalidateQueries({ queryKey: ['reviews'] })
       } catch (error) {
         console.error('Error deleting review:', error)
       }
@@ -105,7 +102,6 @@ const ReviewsPage = () => {
   const handleFilterByProduct = (product: ProductOption | null) => {
     const productId = product?._id ?? null
     setSelectedProductId(productId)
-    fetchReviews(productId ?? undefined)
   }
 
   const columns: GridColDef<Review>[] = [
@@ -235,7 +231,7 @@ const ReviewsPage = () => {
         />
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoadingReviews || isFetchingReviews || isLoadingProducts || isFetchingProducts) && <LinearProgress />}
 
       <DataGrid
         rows={reviews}
