@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Button,
@@ -18,6 +18,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 
 interface Shipment {
@@ -45,35 +46,31 @@ interface ShipmentFormValues {
 }
 
 const ShipmentsPage = () => {
-  const [shipments, setShipments] = useState<Shipment[]>([])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<Shipment | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const { register, handleSubmit, reset, setValue } = useForm<ShipmentFormValues>()
+  const queryClient = useQueryClient()
 
   const fetchShipments = async () => {
-    setLoading(true)
-    try {
-      const res = await client.get('/shipments')
-      const normalized = (res.data || []).map((s: Shipment) => ({
-        ...s,
-        expectedDelivery: s.expectedDelivery || null,
-        createdAt: s.createdAt || s.updatedAt || null,
-        updatedAt: s.updatedAt || null,
-      }))
-      setShipments(normalized)
-    } catch (error) {
-      console.error('Error fetching shipments:', error)
-    } finally {
-      setLoading(false)
-    }
+    const res = await client.get('/shipments')
+    return (res.data || []).map((s: Shipment) => ({
+      ...s,
+      expectedDelivery: s.expectedDelivery || null,
+      createdAt: s.createdAt || s.updatedAt || null,
+      updatedAt: s.updatedAt || null,
+    })) as Shipment[]
   }
 
-  useEffect(() => {
-    fetchShipments()
-  }, [])
+  const {
+    data: shipments = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['shipments'],
+    queryFn: fetchShipments,
+  })
 
   const statusOptions = [
     { value: 'in_transit', label: 'Đang vận chuyển' },
@@ -149,7 +146,7 @@ const ShipmentsPage = () => {
       } else {
         await client.post('/shipments', payload)
       }
-      fetchShipments()
+      await queryClient.invalidateQueries({ queryKey: ['shipments'] })
       handleClose()
     } catch (error) {
       console.error('Error saving shipment:', error)
@@ -162,7 +159,7 @@ const ShipmentsPage = () => {
     if (window.confirm('Bạn có chắc muốn xóa vận đơn này?')) {
       try {
         await client.delete(`/shipments/${id}`)
-        fetchShipments()
+        await queryClient.invalidateQueries({ queryKey: ['shipments'] })
       } catch (error) {
         console.error('Error deleting shipment:', error)
       }
@@ -173,7 +170,7 @@ const ShipmentsPage = () => {
     try {
       setUpdatingId(shipment._id)
       await client.patch(`/shipments/${shipment._id}`, { status })
-      await fetchShipments()
+      await queryClient.invalidateQueries({ queryKey: ['shipments'] })
     } catch (error) {
       console.error('Error updating shipment status:', error)
     } finally {
@@ -185,7 +182,7 @@ const ShipmentsPage = () => {
     try {
       setUpdatingId(shipment._id)
       await client.patch(`/shipments/${shipment._id}`, { paymentStatus: status })
-      await fetchShipments()
+      await queryClient.invalidateQueries({ queryKey: ['shipments'] })
     } catch (error) {
       console.error('Error updating shipment payment:', error)
     } finally {
@@ -348,7 +345,7 @@ const ShipmentsPage = () => {
         </Button>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoading || isFetching) && <LinearProgress />}
 
       <DataGrid
         rows={shipments}

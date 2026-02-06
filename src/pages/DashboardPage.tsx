@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Box, LinearProgress, Paper, Stack, Typography, Chip } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
+import { useQuery } from '@tanstack/react-query'
 import client from '../api/client'
 
 interface OrderSummary {
@@ -26,50 +27,47 @@ interface StatBlock {
 }
 
 const DashboardPage = () => {
-  const [stats, setStats] = useState({
+  const fetchDashboard = async () => {
+    const [productsRes, ordersRes, usersRes, vouchersRes, reviewsRes] = await Promise.all([
+      client.get('/products'),
+      client.get('/orders'),
+      client.get('/users'),
+      client.get('/vouchers'),
+      client.get('/reviews'),
+    ])
+
+    const orders: OrderSummary[] = ordersRes.data ?? []
+    const revenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0)
+    const stats = {
+      products: productsRes.data?.length ?? 0,
+      orders: orders.length,
+      users: usersRes.data?.length ?? 0,
+      vouchers: vouchersRes.data?.length ?? 0,
+      reviews: reviewsRes.data?.length ?? 0,
+      revenue,
+    }
+    const sorted = [...orders].sort((a, b) => (new Date(b.createdAt || '').getTime()) - (new Date(a.createdAt || '').getTime()))
+    return { stats, recentOrders: sorted.slice(0, 5) }
+  }
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['dashboard:stats'],
+    queryFn: fetchDashboard,
+  })
+
+  const stats = data?.stats ?? {
     products: 0,
     orders: 0,
     users: 0,
     vouchers: 0,
     reviews: 0,
     revenue: 0,
-  })
-  const [recentOrders, setRecentOrders] = useState<OrderSummary[]>([])
-  const [loading, setLoading] = useState(false)
-
-  const loadStats = async () => {
-    setLoading(true)
-    try {
-      const [productsRes, ordersRes, usersRes, vouchersRes, reviewsRes] = await Promise.all([
-        client.get('/products'),
-        client.get('/orders'),
-        client.get('/users'),
-        client.get('/vouchers'),
-        client.get('/reviews'),
-      ])
-
-      const orders: OrderSummary[] = ordersRes.data ?? []
-      const revenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0)
-      setStats({
-        products: productsRes.data?.length ?? 0,
-        orders: orders.length,
-        users: usersRes.data?.length ?? 0,
-        vouchers: vouchersRes.data?.length ?? 0,
-        reviews: reviewsRes.data?.length ?? 0,
-        revenue,
-      })
-      const sorted = [...orders].sort((a, b) => (new Date(b.createdAt || '').getTime()) - (new Date(a.createdAt || '').getTime()))
-      setRecentOrders(sorted.slice(0, 5))
-    } catch (error) {
-      console.error('Không tải được thống kê:', error)
-    } finally {
-      setLoading(false)
-    }
   }
-
-  useEffect(() => {
-    loadStats()
-  }, [])
+  const recentOrders = data?.recentOrders ?? []
 
   const cards: StatBlock[] = useMemo(
     () => [
@@ -138,7 +136,7 @@ const DashboardPage = () => {
         </Box>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoading || isFetching) && <LinearProgress />}
 
       <Box
         sx={{

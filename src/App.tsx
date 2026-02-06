@@ -6,6 +6,8 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
+import ProductDetailPage from './pages/ProductDetailPage'
+import OrderDetailPage from './pages/OrderDetailPage'
 import UsersPage from './pages/UsersPage'
 import VouchersPage from './pages/VouchersPage'
 import ReviewsPage from './pages/ReviewsPage'
@@ -63,7 +65,9 @@ function App() {
               <Route element={<Layout />}>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/products" element={<ProductsPage />} />
+                <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/orders/:id" element={<OrderDetailPage />} />
                 <Route path="/shipments" element={<ShipmentsPage />} />
                 <Route path="/inventory" element={<InventoryMovementsPage />} />
                 <Route path="/transactions" element={<TransactionsPage />} />

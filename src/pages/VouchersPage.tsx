@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Box,
   Button,
@@ -17,6 +17,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 
 interface Voucher {
@@ -42,36 +43,32 @@ interface VoucherFormValues {
 }
 
 const VouchersPage = () => {
-  const [vouchers, setVouchers] = useState<Voucher[]>([])
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null)
   const { register, handleSubmit, reset, setValue } = useForm<VoucherFormValues>()
   const [type, setType] = useState<'fixed' | 'shipping' | 'percentage'>('fixed')
+  const queryClient = useQueryClient()
 
   const fetchVouchers = async () => {
-    setLoading(true)
-    try {
-      const response = await client.get('/vouchers')
-      const normalized = (response.data as Voucher[]).map((v) => ({
-        ...v,
-        discountPrice: Number(v.discountPrice ?? 0),
-        minTotal: Number(v.minTotal ?? 0),
-        expire: v.expire,
-      }))
-      setVouchers(normalized)
-    } catch (error) {
-      console.error('Error fetching vouchers:', error)
-    } finally {
-      setLoading(false)
-    }
+    const response = await client.get('/vouchers')
+    return (response.data as Voucher[]).map((v) => ({
+      ...v,
+      discountPrice: Number(v.discountPrice ?? 0),
+      minTotal: Number(v.minTotal ?? 0),
+      expire: v.expire,
+    }))
   }
 
-  useEffect(() => {
-    fetchVouchers()
-  }, [])
+  const {
+    data: vouchers = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['vouchers'],
+    queryFn: fetchVouchers,
+  })
 
   const handleOpen = (voucher: Voucher | null = null) => {
     setEditingVoucher(voucher)
@@ -127,7 +124,7 @@ const VouchersPage = () => {
       } else {
         await client.post('/vouchers', payload)
       }
-      fetchVouchers()
+      await queryClient.invalidateQueries({ queryKey: ['vouchers'] })
       handleClose()
     } catch (error) {
       console.error('Error saving voucher:', error)
@@ -140,7 +137,7 @@ const VouchersPage = () => {
     if (window.confirm('Bạn có chắc muốn xóa voucher này?')) {
       try {
         await client.delete(`/vouchers/${id}`)
-        fetchVouchers()
+        await queryClient.invalidateQueries({ queryKey: ['vouchers'] })
       } catch (error) {
         console.error('Error deleting voucher:', error)
       }
@@ -223,8 +220,9 @@ const VouchersPage = () => {
   }
 
   const normalizedSearch = normalizeText(search)
-  const filteredVouchers = normalizedSearch
-    ? vouchers.filter((v) => {
+  const filteredVouchers = useMemo(() => {
+    if (!normalizedSearch) return vouchers
+    return vouchers.filter((v) => {
       const haystacks = [
         v.code,
         v.description,
@@ -236,7 +234,7 @@ const VouchersPage = () => {
       ]
       return haystacks.some((h) => fuzzyMatch(h, normalizedSearch))
     })
-    : vouchers
+  }, [normalizedSearch, vouchers])
 
   return (
     <Box sx={{ height: '100%', width: '100%' }}>
@@ -265,7 +263,7 @@ const VouchersPage = () => {
         </Stack>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoading || isFetching) && <LinearProgress />}
 
       <DataGrid
         rows={filteredVouchers}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Button,
@@ -19,6 +19,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, ConfirmationNumber } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 
 interface User {
@@ -48,12 +49,11 @@ interface VoucherFormValues {
 }
 
 const UsersPage = () => {
-  const [users, setUsers] = useState<User[]>([])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const { register, handleSubmit, reset, setValue, control } = useForm<UserFormValues>()
+  const queryClient = useQueryClient()
 
   // Voucher State
   const [openVoucherDialog, setOpenVoucherDialog] = useState(false)
@@ -62,20 +62,18 @@ const UsersPage = () => {
   const { register: registerVoucher, handleSubmit: handleSubmitVoucher, reset: resetVoucher } = useForm<VoucherFormValues>()
 
   const fetchUsers = async () => {
-    setLoading(true)
-    try {
-      const response = await client.get('/users')
-      setUsers(response.data)
-    } catch (error) {
-      console.error('Error fetching users:', error)
-    } finally {
-      setLoading(false)
-    }
+    const response = await client.get('/users')
+    return response.data as User[]
   }
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
+  const {
+    data: users = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+  })
 
   const handleOpen = (user: User | null = null) => {
     setEditingUser(user)
@@ -113,7 +111,7 @@ const UsersPage = () => {
         }
         await client.post('/users', payload)
       }
-      fetchUsers()
+      await queryClient.invalidateQueries({ queryKey: ['users'] })
       handleClose()
     } catch (error) {
       console.error('Error saving user:', error)
@@ -126,7 +124,7 @@ const UsersPage = () => {
     if (window.confirm('Bạn có chắc muốn xóa người dùng này?')) {
       try {
         await client.delete(`/users/${id}`)
-        fetchUsers()
+        await queryClient.invalidateQueries({ queryKey: ['users'] })
       } catch (error) {
         console.error('Error deleting user:', error)
       }
@@ -228,7 +226,7 @@ const UsersPage = () => {
         </Button>
       </Box>
 
-      {loading && <LinearProgress />}
+      {(isLoading || isFetching) && <LinearProgress />}
 
       <DataGrid
         rows={users}
