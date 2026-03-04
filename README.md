@@ -102,6 +102,18 @@ electronics-admin/
 │   └── main.tsx            # Entry Point
 ```
 
+### Sơ đồ kiến trúc Admin & Backend
+
+```mermaid
+flowchart LR
+    A[Admin Web - electronics-admin<br/>React + Vite] -->|HTTP / WebSocket| B[electronics-backend (NestJS API)]
+    B --> C[(MongoDB)]
+    B --> D[Cloudinary]
+    B --> E[VNPay]
+    B --> F[Firebase Admin<br/>Notifications & Token Verify]
+    B --> G[AI Service (Gemini)]
+```
+
 ### Công Nghệ Sử Dụng
 
 *   **Frontend Framework**: React 19
@@ -135,6 +147,11 @@ VITE_API_URL=http://localhost:3000
 ```
 > *Lưu ý: Liên hệ Admin để lấy cấu hình chuẩn nếu cần.*
 
+#### Ghi chú bảo mật
+
+- File `.env` **đã được ignore** trong `.gitignore`, tuyệt đối không commit lên repository.
+- `VITE_API_URL` nên trỏ tới backend `electronics-backend` đã được cấu hình đầy đủ (bao gồm xác thực JWT, social login Google/Apple, thanh toán, v.v.).
+
 ### 4. Chạy ứng dụng (Development)
 ```bash
 npm run dev
@@ -157,6 +174,18 @@ npm run preview
   - Dữ liệu được bảo vệ dựa trên Role (`admin`).
   - Token tự động đính kèm vào Header `Authorization`.
   - Tự động logout khi hết phiên đăng nhập.
+- **Backend phụ thuộc**: Toàn bộ auth, phân quyền, social login, thanh toán... được xử lý bởi service `electronics-backend`; admin chỉ là client giao tiếp qua REST API / WebSocket.
+
+### Lưu đồ luồng đăng nhập Admin
+
+```mermaid
+flowchart TD
+    S[Trang Login Admin] --> F[Người dùng nhập email/password]
+    F --> V[Gửi yêu cầu đến backend<br/>POST /auth/login]
+    V -->|Thành công| T[Lưu Access/Refresh Token<br/>trong storage an toàn]
+    V -->|Thất bại| E[Hiển thị lỗi đăng nhập]
+    T --> R[Redirect vào Dashboard]
+```
 
 ---
 
