@@ -42,12 +42,6 @@ const ReviewsPage = () => {
   const socketRef = useRef<ReturnType<typeof getSocket> | null>(null)
   const queryClient = useQueryClient()
 
-  const productMap = useMemo(() => new Map(products.map((product) => [product._id, product])), [products])
-  const selectedProduct = useMemo(
-    () => products.find((product) => product._id === selectedProductId) ?? null,
-    [products, selectedProductId]
-  )
-
   const fetchProducts = async () => {
     const response = await client.get('/products')
     return response.data as ProductOption[]
@@ -72,6 +66,12 @@ const ReviewsPage = () => {
     queryKey: ['reviews', selectedProductId],
     queryFn: () => fetchReviews(selectedProductId),
   })
+
+  const productMap = useMemo(() => new Map(products.map((product) => [product._id, product])), [products])
+  const selectedProduct = useMemo(
+    () => products.find((product) => product._id === selectedProductId) ?? null,
+    [products, selectedProductId],
+  )
 
   useEffect(() => {
     socketRef.current = getSocket()

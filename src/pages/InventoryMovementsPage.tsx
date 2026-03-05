@@ -340,7 +340,9 @@ const InventoryMovementsPage = () => {
                           ...params.InputProps,
                           endAdornment: (
                             <>
-                              {productsLoading ? <CircularProgress color="inherit" size={18} /> : null}
+                              {isLoadingProducts || isFetchingProducts ? (
+                                <CircularProgress color="inherit" size={18} />
+                              ) : null}
                               {params.InputProps.endAdornment}
                             </>
                           ),

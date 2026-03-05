@@ -81,22 +81,6 @@ const BannersPage = () => {
     },
   })
 
-  const sortedBanners = useMemo(
-    () => [...banners].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [banners],
-  )
-
-  useDbChange(['banners'], () => {
-    queryClient.invalidateQueries({ queryKey: ['banners'] })
-  })
-
-  useEffect(() => {
-    if (editingBanner?.productId) {
-      const found = products.find((p) => p._id === editingBanner.productId)
-      setProductSearch(found?.name || '')
-    }
-  }, [editingBanner?.productId, products])
-
   const fetchProducts = async () => {
     const response = await client.get('/products')
     return (response.data || []).map((p: { _id: string; name: string }) => ({ _id: p._id, name: p.name })) as ProductOption[]
@@ -116,6 +100,22 @@ const BannersPage = () => {
     queryKey: ['products:options'],
     queryFn: fetchProducts,
   })
+
+  const sortedBanners = useMemo(
+    () => [...banners].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [banners],
+  )
+
+  useDbChange(['banners'], () => {
+    queryClient.invalidateQueries({ queryKey: ['banners'] })
+  })
+
+  useEffect(() => {
+    if (editingBanner?.productId) {
+      const found = products.find((p) => p._id === editingBanner.productId)
+      setProductSearch(found?.name || '')
+    }
+  }, [editingBanner?.productId, products])
 
   useEffect(() => {
     if (!imageFile) {

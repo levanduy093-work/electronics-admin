@@ -6,11 +6,11 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  Grid,
   Paper,
   Stack,
   Typography,
 } from '@mui/material'
+import Grid from '@mui/material/Grid2'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { useDbChange } from '../hooks/useDbChange'
