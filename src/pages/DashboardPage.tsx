@@ -30,7 +30,7 @@ const DashboardPage = () => {
   const fetchDashboard = async () => {
     const [productsRes, ordersRes, usersRes, vouchersRes, reviewsRes] = await Promise.all([
       client.get('/products'),
-      client.get('/orders'),
+      client.get('/orders?scope=all'),
       client.get('/users'),
       client.get('/vouchers'),
       client.get('/reviews'),

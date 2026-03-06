@@ -114,7 +114,7 @@ const OrdersPage = () => {
   })
 
   const fetchOrders = async () => {
-    const response = await client.get('/orders')
+    const response = await client.get('/orders?scope=all')
     return response.data as Order[]
   }
 
