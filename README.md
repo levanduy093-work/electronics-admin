@@ -1,44 +1,82 @@
 # ElectronicsShop Admin
 
-Admin dashboard for managing products, orders, vouchers, and users.
+Admin dashboard để quản trị toàn bộ hệ thống ElectronicsShop: sản phẩm, đơn hàng, tồn kho, thanh toán, banner và thông báo.
 
 ## Tech Stack
-- React (web)
-- API integration with ElectronicsShop backend
+- Vite + React
+- MUI
+- TanStack Query
+- Socket.IO client
 
-## Requirements
-- Node.js >= 20
-
-## Environment
-Create `.env` in this folder:
+## Cấu hình môi trường
+Tạo `.env`:
 
 ```env
-REACT_APP_API_BASE_URL=https://your-backend-host
+VITE_API_URL=http://localhost:3000
 ```
 
-## Install
+## Cài đặt và chạy
 ```bash
 npm install
+npm run dev
 ```
 
-## Run
-```bash
-npm start
+## Module quản trị
+- Dashboard tổng quan
+- Products + Product Detail
+- Orders + Order Detail
+- Shipments
+- Inventory Movements
+- Transactions
+- Users
+- Vouchers
+- Reviews
+- Notifications
+- Banners
+
+## Flow tổng thể (Admin)
+```mermaid
+flowchart TD
+  A[Login admin] --> B[Load dashboard]
+  B --> C[CRUD Products]
+  B --> D[Manage Orders]
+  B --> E[Manage Inventory]
+  B --> F[Manage Shipments]
+  B --> G[Manage Transactions]
+  B --> H[Manage Users/Vouchers/Reviews]
+  B --> I[Manage Notifications/Banners]
 ```
 
-## Build
-```bash
-npm run build
+## Flow Orders + Shipments
+```mermaid
+flowchart TD
+  O1[Open Orders] --> O2[Select Order]
+  O2 --> O3[Update status / cancel / rollback]
+  O3 --> S1[Backend sync shipment]
+  S1 --> S2[Shipment status history]
 ```
 
-## Deploy (Reference)
-1. Build production assets:
-```bash
-npm run build
+## Flow Inventory
+```mermaid
+flowchart TD
+  I1[Create movement inbound/outbound] --> I2[Backend update stock]
+  I2 --> I3[Movement recorded]
 ```
-2. Serve `build/` with Nginx/Apache/S3 + CDN.
-3. Ensure `REACT_APP_API_BASE_URL` points to the backend.
 
-## Notes
-- Make sure backend CORS allows this admin domain.
-- Use admin account roles for privileged access.
+## Realtime DB Change
+```mermaid
+flowchart TD
+  A1[Socket connect with JWT] --> A2[Join admin room]
+  A2 --> A3[Receive db_change events]
+  A3 --> A4[Refresh tables]
+```
+
+## Ghi chú
+- Cần tài khoản role `admin`.
+- Admin app tự refresh token qua `/auth/refresh` khi access token hết hạn.
+- Backend cần cấu hình CORS cho domain admin.
+
+## Liên quan
+- Backend: `/Users/levanduy/Nam4/HK2/Mobile/ElectroAI/electronics-backend/README.md`
+- Mobile: `/Users/levanduy/Nam4/HK2/Mobile/ElectroAI/ElectronicsShop/README.md`
+- Tổng quan hệ thống: `/Users/levanduy/Nam4/HK2/Mobile/ElectroAI/readme.md`
